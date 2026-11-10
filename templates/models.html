@@ -1,0 +1,345 @@
+﻿{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center mb-4">
+    <i class="bi bi-cpu-fill fs-3 text-primary me-3"></i>
+    <div>
+      <h2 class="mb-0 fw-bold">Model Management &amp; Performance Evaluation</h2>
+      <small class="text-muted">Kelola dan evaluasi performa model Machine Learning untuk deteksi ancaman</small>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       CARD 1: Perbandingan Metrik Model
+  ============================================================ -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+      <div>
+        <i class="bi bi-table me-2"></i>
+        <strong>Perbandingan Metrik Model</strong>
+      </div>
+      <span class="badge bg-light text-primary">{{ metrics | length }} Model Terdaftar</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Model</th>
+              <th>Versi</th>
+              <th class="text-center">Accuracy</th>
+              <th class="text-center">Precision</th>
+              <th class="text-center">
+                Recall
+                <span class="text-danger" title="Metrik terpenting dalam konteks keamanan">â˜…</span>
+              </th>
+              <th class="text-center">F1-Score</th>
+              <th class="text-center">ROC-AUC</th>
+              <th class="text-center">TP</th>
+              <th class="text-center">FP</th>
+              <th class="text-center">TN</th>
+              <th class="text-center">FN</th>
+              <th class="text-center">Status</th>
+              <th class="text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in metrics %}
+            <tr class="{% if m.is_active == 1 %}table-primary{% endif %}">
+              <td class="px-3 fw-semibold">
+                <i class="bi bi-diagram-3 me-1 text-primary"></i>{{ m.model_name }}
+              </td>
+              <td><code>{{ m.version }}</code></td>
+              <td class="text-center">
+                <span class="badge bg-secondary">{{ "%.2f"|format(m.accuracy * 100) }}%</span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-secondary">{{ "%.2f"|format(m.precision_score * 100) }}%</span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-danger text-white fw-bold">
+                  {{ "%.2f"|format(m.recall * 100) }}%
+                  <span class="text-warning">â˜…</span>
+                </span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-secondary">{{ "%.2f"|format(m.f1_score * 100) }}%</span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-info text-dark">{{ "%.4f"|format(m.roc_auc) }}</span>
+              </td>
+              <td class="text-center text-success fw-bold">{{ m.tp }}</td>
+              <td class="text-center text-warning fw-bold">{{ m.fp }}</td>
+              <td class="text-center text-secondary fw-bold">{{ m.tn }}</td>
+              <td class="text-center text-danger fw-bold">{{ m.fn }}</td>
+              <td class="text-center">
+                {% if m.is_active == 1 %}
+                  <span class="badge bg-success">AKTIF</span>
+                {% else %}
+                  <span class="badge bg-secondary">NONAKTIF</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if m.is_active != 1 %}
+                <form method="POST" action="/api/models/switch" class="d-inline">
+                  <input type="hidden" name="model_id" value="{{ m.id }}">
+                  <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-toggle-on me-1"></i>Aktifkan
+                  </button>
+                </form>
+                {% else %}
+                <span class="text-muted small"><i class="bi bi-check-circle-fill text-success me-1"></i>Sedang Aktif</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="13" class="text-center text-muted py-4">
+                <i class="bi bi-inbox fs-3 d-block mb-2"></i>Belum ada data model tersedia.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       CARD 2: Confusion Matrix Visual (RF dan XGBoost side-by-side)
+  ============================================================ -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-dark text-white">
+      <i class="bi bi-grid-3x3 me-2"></i>
+      <strong>Confusion Matrix Visual</strong>
+    </div>
+    <div class="card-body">
+      <div class="row g-4">
+        {% for m in metrics %}
+        <div class="col-md-6">
+          <div class="card border border-2 {% if m.is_active == 1 %}border-primary{% else %}border-secondary{% endif %}">
+            <div class="card-header text-center fw-bold bg-light">
+              <i class="bi bi-cpu me-1 text-primary"></i>{{ m.model_name }}
+              <span class="ms-2 badge {% if m.is_active == 1 %}bg-primary{% else %}bg-secondary{% endif %} small">v{{ m.version }}</span>
+            </div>
+            <div class="card-body p-3">
+              <!-- Confusion Matrix Labels -->
+              <div class="d-flex justify-content-around mb-1 text-center">
+                <small class="text-muted fw-semibold" style="width:50%">Predicted: Positive</small>
+                <small class="text-muted fw-semibold" style="width:50%">Predicted: Negative</small>
+              </div>
+              <div class="row g-2">
+                <!-- TP -->
+                <div class="col-6">
+                  <div class="p-3 rounded-3 text-center border border-success bg-success bg-opacity-10">
+                    <div class="fs-2 fw-bold text-success">{{ m.tp }}</div>
+                    <div class="small fw-semibold text-success">True Positive</div>
+                    <div class="text-muted" style="font-size:0.72rem;">Serangan terdeteksi âœ“</div>
+                  </div>
+                </div>
+                <!-- FP -->
+                <div class="col-6">
+                  <div class="p-3 rounded-3 text-center border border-warning bg-warning bg-opacity-10">
+                    <div class="fs-2 fw-bold text-warning">{{ m.fp }}</div>
+                    <div class="small fw-semibold text-warning">False Positive</div>
+                    <div class="text-muted" style="font-size:0.72rem;">Alarm palsu âš </div>
+                  </div>
+                </div>
+                <!-- FN -->
+                <div class="col-6">
+                  <div class="p-3 rounded-3 text-center border border-danger bg-danger bg-opacity-10">
+                    <div class="fs-2 fw-bold text-danger">{{ m.fn }}</div>
+                    <div class="small fw-semibold text-danger">False Negative</div>
+                    <div class="text-muted" style="font-size:0.72rem;">Serangan lolos âœ—</div>
+                  </div>
+                </div>
+                <!-- TN -->
+                <div class="col-6">
+                  <div class="p-3 rounded-3 text-center border border-secondary bg-secondary bg-opacity-10">
+                    <div class="fs-2 fw-bold text-secondary">{{ m.tn }}</div>
+                    <div class="small fw-semibold text-secondary">True Negative</div>
+                    <div class="text-muted" style="font-size:0.72rem;">Normal dilewati âœ“</div>
+                  </div>
+                </div>
+              </div>
+              <!-- Mini summary -->
+              <div class="mt-3 d-flex justify-content-around text-center">
+                <div>
+                  <div class="text-muted small">Recall</div>
+                  <div class="fw-bold text-danger">{{ "%.1f"|format(m.recall * 100) }}%</div>
+                </div>
+                <div>
+                  <div class="text-muted small">Precision</div>
+                  <div class="fw-bold text-primary">{{ "%.1f"|format(m.precision_score * 100) }}%</div>
+                </div>
+                <div>
+                  <div class="text-muted small">F1-Score</div>
+                  <div class="fw-bold text-info">{{ "%.1f"|format(m.f1_score * 100) }}%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       CARD 3: Interpretasi Metrik Keamanan
+  ============================================================ -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-dark">
+      <i class="bi bi-shield-exclamation me-2"></i>
+      <strong>Interpretasi Metrik Keamanan</strong>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <!-- FN Callout (Merah - FATAL) -->
+        <div class="col-md-4">
+          <div class="alert alert-danger border-start border-5 border-danger mb-0 h-100">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-x-octagon-fill fs-4 me-3 mt-1 flex-shrink-0"></i>
+              <div>
+                <h6 class="fw-bold mb-1">False Negative (FN)</h6>
+                <p class="mb-0 small">
+                  Penyerang <strong>LOLOS</strong> tanpa terdeteksi.
+                  Ini adalah skenario paling <strong>FATAL!</strong>
+                  Serangan nyata dibiarkan masuk ke sistem tanpa alarm.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- FP Callout (Kuning) -->
+        <div class="col-md-4">
+          <div class="alert alert-warning border-start border-5 border-warning mb-0 h-100">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-exclamation-triangle-fill fs-4 me-3 mt-1 flex-shrink-0"></i>
+              <div>
+                <h6 class="fw-bold mb-1">False Positive (FP)</h6>
+                <p class="mb-0 small">
+                  Pengguna sah <strong>terganggu</strong> secara tidak perlu.
+                  Memicu MFA atau Block pada akses legitimate,
+                  menurunkan pengalaman pengguna.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Recall Callout (Biru) -->
+        <div class="col-md-4">
+          <div class="alert alert-primary border-start border-5 border-primary mb-0 h-100">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-stars fs-4 me-3 mt-1 flex-shrink-0 text-warning"></i>
+              <div>
+                <h6 class="fw-bold mb-1">
+                  Recall <span class="text-danger">â˜…</span> â€” Metrik Terpenting
+                </h6>
+                <p class="mb-0 small">
+                  Recall tinggi = <strong>sedikit penyerang yang lolos</strong>.
+                  Dalam konteks keamanan, meminimalkan FN jauh lebih
+                  kritis daripada meminimalkan FP.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Formula reminder -->
+      <div class="mt-3 p-3 bg-light rounded-3 border">
+        <div class="row text-center g-2">
+          <div class="col-md-4">
+            <span class="text-muted small">Recall =</span>
+            <strong class="text-danger ms-1">TP / (TP + FN)</strong>
+          </div>
+          <div class="col-md-4">
+            <span class="text-muted small">Precision =</span>
+            <strong class="text-primary ms-1">TP / (TP + FP)</strong>
+          </div>
+          <div class="col-md-4">
+            <span class="text-muted small">F1 =</span>
+            <strong class="text-info ms-1">2 Ã— (Precision Ã— Recall) / (Precision + Recall)</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       CARD 4: Bar Chart (Chart.js)
+  ============================================================ -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-dark">
+      <i class="bi bi-bar-chart-fill me-2"></i>
+      <strong>Grafik Perbandingan Metrik Antar Model</strong>
+    </div>
+    <div class="card-body">
+      <canvas id="metricsChart" height="80"></canvas>
+    </div>
+  </div>
+
+</div><!-- /container-fluid -->
+
+<!-- ============================================================
+     Chart.js Script
+============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  // Inject metrics data from Flask template
+  const metricsData = {{ metrics | tojson }};
+
+  const labels = ['Accuracy', 'Precision', 'Recall â˜…', 'F1-Score', 'ROC-AUC'];
+  const palette = [
+    'rgba(13,  110, 253, 0.75)',   // blue
+    'rgba(220, 53,  69,  0.75)',   // red
+    'rgba(25,  135, 84,  0.75)',   // green
+    'rgba(255, 193, 7,   0.80)',   // yellow
+    'rgba(111, 66,  193, 0.75)',   // purple
+  ];
+
+  const datasets = metricsData.map((m, idx) => ({
+    label: m.model_name + ' v' + m.version,
+    data: [
+      +(m.accuracy  * 100).toFixed(2),
+      +(m.precision_score * 100).toFixed(2),
+      +(m.recall    * 100).toFixed(2),
+      +(m.f1_score  * 100).toFixed(2),
+      +(m.roc_auc   * 100).toFixed(2),
+    ],
+    backgroundColor: palette[idx % palette.length],
+    borderColor:     palette[idx % palette.length].replace('0.75', '1').replace('0.80', '1'),
+    borderWidth: 1,
+    borderRadius: 4,
+  }));
+
+  new Chart(document.getElementById('metricsChart'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: v => v + '%' },
+          title: { display: true, text: 'Persentase (%)' }
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endblock %}
+

@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% block title %}Pengaturan Sistem{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-gear me-2 text-primary"></i>Pengaturan Sistem</h4>
+    <small class="text-muted">Manajemen akun pengguna & Role-Based Access Control (RBAC)</small>
+  </div>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTambahUser">
+    <i class="bi bi-person-plus me-1"></i> Tambah Pengguna
+  </button>
+</div>
+
+<div class="alert alert-info d-flex align-items-center shadow-sm border-0 mb-4">
+  <i class="bi bi-shield-lock-fill fs-4 me-3 text-primary"></i>
+  <div>
+    <strong>Halaman Terbatas — Security Engineer Only</strong><br>
+    <small>Halaman ini hanya dapat diakses oleh pengguna dengan peran <strong>Security Engineer</strong>. Setiap perubahan konfigurasi akan tercatat di Audit Trail.</small>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Daftar User -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-people me-1 text-primary"></i> Daftar Pengguna Sistem</span>
+        <span class="badge bg-secondary">{{ users_list|length }} User</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Nama Lengkap</th>
+                <th>Peran (Role)</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users_list %}
+              <tr>
+                <td class="text-muted small">#{{ u.id }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width:34px;height:34px;font-size:0.85rem">
+                      {{ u.nama[0]|upper if u.nama else '?' }}
+                    </div>
+                    <code class="small">{{ u.username }}</code>
+                  </div>
+                </td>
+                <td class="fw-semibold">{{ u.nama }}</td>
+                <td>
+                  {% if u.role == 'security_engineer' %}
+                    <span class="badge bg-primary"><i class="bi bi-shield-fill-check me-1"></i>Security Engineer</span>
+                  {% elif u.role == 'soc_analyst' %}
+                    <span class="badge bg-success"><i class="bi bi-eye me-1"></i>SOC Analyst</span>
+                  {% else %}
+                    <span class="badge bg-secondary"><i class="bi bi-clipboard me-1"></i>Auditor</span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted">{{ u.email or '-' }}</td>
+                <td>
+                  {% if u.is_active %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success">● Aktif</span>
+                  {% else %}
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">● Nonaktif</span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted">
+                  {{ u.last_login.strftime('%d/%m/%Y %H:%M') if u.last_login else 'Belum pernah' }}
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" title="Edit" disabled><i class="bi bi-pencil"></i></button>
+                    {% if u.id != session.get('user_id') %}
+                    <button class="btn btn-outline-danger" title="Nonaktifkan" disabled><i class="bi bi-person-x"></i></button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="8" class="text-center py-4 text-muted">Belum ada data pengguna.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info RBAC -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <span class="fw-semibold"><i class="bi bi-diagram-3 me-1 text-warning"></i> Matriks Hak Akses (RBAC)</span>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm table-bordered text-center align-middle" style="font-size:0.85rem">
+          <thead class="table-dark">
+            <tr>
+              <th class="text-start">Menu / Fitur</th>
+              <th><span class="badge bg-primary">Security Eng.</span></th>
+              <th><span class="badge bg-success">SOC Analyst</span></th>
+              <th><span class="badge bg-secondary">Auditor</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="text-start">Dashboard</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td class="text-start">Live Monitor</td><td>✅</td><td>✅</td><td>✅ (R/O)</td></tr>
+            <tr><td class="text-start">AI Simulator</td><td>✅</td><td>✅</td><td>❌</td></tr>
+            <tr><td class="text-start">Incident Investigation</td><td>✅</td><td>✅</td><td>✅ (R/O)</td></tr>
+            <tr><td class="text-start">Model Management</td><td>✅</td><td>✅ (R/O)</td><td>✅ (R/O)</td></tr>
+            <tr><td class="text-start">Policy Engine</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td class="text-start">IP Reputation</td><td>✅</td><td>✅ (Tambah)</td><td>❌</td></tr>
+            <tr><td class="text-start">Pengaturan & Audit</td><td>✅</td><td>✅ (Audit)</td><td>✅ (Audit)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Sistem -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <span class="fw-semibold"><i class="bi bi-info-circle me-1 text-info"></i> Informasi Sistem</span>
+      </div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr><td class="text-muted" style="width:40%">Nama Sistem</td><td class="fw-semibold">AI-SecurAuth</td></tr>
+          <tr><td class="text-muted">Versi</td><td><span class="badge bg-primary">v1.0.0 (PjBL 2026)</span></td></tr>
+          <tr><td class="text-muted">Framework</td><td>Python Flask 3.0</td></tr>
+          <tr><td class="text-muted">Database</td><td>MySQL (via phpMyAdmin)</td></tr>
+          <tr><td class="text-muted">Model Aktif</td><td><span class="badge bg-warning text-dark">XGBoost Classifier</span></td></tr>
+          <tr><td class="text-muted">Mata Kuliah</td><td>AI for Security (PjBL)</td></tr>
+          <tr><td class="text-muted">Dataset</td><td>RBA Dataset (SSO Norway)</td></tr>
+        </table>
+        <hr class="my-3">
+        <div class="d-grid gap-2">
+          <a href="/audit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-journal-text me-1"></i> Lihat Audit Trail
+          </a>
+          <a href="/policy" class="btn btn-outline-warning btn-sm">
+            <i class="bi bi-sliders me-1"></i> Konfigurasi Policy
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tambah User -->
+<div class="modal fade" id="modalTambahUser" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-person-plus me-1"></i> Tambah Pengguna Baru</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formTambahUser">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Username</label>
+            <input type="text" class="form-control" name="username" placeholder="Contoh: analyst2" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Nama Lengkap</label>
+            <input type="text" class="form-control" name="nama" placeholder="Nama lengkap pengguna" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Email</label>
+            <input type="email" class="form-control" name="email" placeholder="email@securauth.local">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Peran (Role)</label>
+            <select class="form-select" name="role">
+              <option value="soc_analyst">SOC Analyst</option>
+              <option value="security_engineer">Security Engineer</option>
+              <option value="auditor">Auditor</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Password</label>
+            <input type="password" class="form-control" name="password" placeholder="Min. 8 karakter" required>
+          </div>
+        </form>
+        <div class="alert alert-warning small mb-0">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          Fitur simpan pengguna baru akan tersedia di versi berikutnya.
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-primary btn-sm" disabled>
+          <i class="bi bi-save me-1"></i> Simpan (Coming Soon)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

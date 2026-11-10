@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center gap-3">
+      <i class="bi bi-activity fs-3 text-warning"></i>
+      <div>
+        <h2 class="mb-0 fw-bold text-white">Live Login Monitor</h2>
+        <small class="text-secondary">Real-time login event tracking &amp; AI decision log</small>
+      </div>
+      <span class="badge bg-danger ms-2 live-badge" style="font-size:.75rem;letter-spacing:.05em;">
+        <i class="bi bi-broadcast me-1"></i>LIVE
+      </span>
+    </div>
+    <div class="text-secondary small">
+      <i class="bi bi-arrow-clockwise me-1"></i>Auto-refresh setiap <span id="countdown">10</span>s
+    </div>
+  </div>
+
+  <!-- Live Preview Strip -->
+  <div class="card mb-3 border-0" style="background:linear-gradient(135deg,#0d1b2a 0%,#112240 100%);">
+    <div class="card-header d-flex align-items-center justify-content-between py-2 border-bottom border-secondary">
+      <span class="text-warning fw-semibold small"><i class="bi bi-lightning-charge-fill me-1"></i>3 Event Terbaru</span>
+      <span class="badge bg-secondary">Preview</span>
+    </div>
+    <div class="card-body p-0">
+      <div id="live-preview" class="d-flex flex-column gap-0">
+        <div class="text-center text-secondary py-3 small" id="preview-placeholder">
+          <i class="bi bi-hourglass-split me-1"></i>Menunggu data terbaru…
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card border-0 mb-3" style="background:#112240;">
+    <div class="card-body py-2">
+      <form method="GET" action="{{ request.path }}" class="row g-2 align-items-center">
+        <!-- Risk Level -->
+        <div class="col-auto">
+          <label class="form-label text-secondary small mb-0">Risk Level</label>
+          <select name="risk" class="form-select form-select-sm bg-dark text-white border-secondary" style="min-width:130px;">
+            <option value="" {% if not risk %}selected{% endif %}>Semua Level</option>
+            <option value="low"    {% if risk=='low'    %}selected{% endif %}>🟢 Low</option>
+            <option value="medium" {% if risk=='medium' %}selected{% endif %}>🟡 Medium</option>
+            <option value="high"   {% if risk=='high'   %}selected{% endif %}>🔴 High</option>
+          </select>
+        </div>
+        <!-- Decision -->
+        <div class="col-auto">
+          <label class="form-label text-secondary small mb-0">Keputusan AI</label>
+          <select name="decision" class="form-select form-select-sm bg-dark text-white border-secondary" style="min-width:160px;">
+            <option value="" {% if not decision %}selected{% endif %}>Semua Keputusan</option>
+            <option value="allow"         {% if decision=='allow'         %}selected{% endif %}>✅ Allow</option>
+            <option value="challenge_mfa" {% if decision=='challenge_mfa' %}selected{% endif %}>🔐 Challenge MFA</option>
+            <option value="block"         {% if decision=='block'         %}selected{% endif %}>🚫 Block</option>
+          </select>
+        </div>
+        <!-- Search -->
+        <div class="col">
+          <label class="form-label text-secondary small mb-0">Cari</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+            <input type="text" name="search" value="{{ search or '' }}"
+                   class="form-control bg-dark text-white border-secondary"
+                   placeholder="IP, user, negara…">
+          </div>
+        </div>
+        <!-- Buttons -->
+        <div class="col-auto d-flex gap-2 align-self-end">
+          <button type="submit" class="btn btn-sm btn-primary">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
+          <a href="{{ request.path }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-x-lg"></i>
+          </a>
+          <a href="/api/monitor/export?risk={{ risk or '' }}&decision={{ decision or '' }}&search={{ search or '' }}"
+             class="btn btn-sm btn-outline-warning">
+            <i class="bi bi-download me-1"></i>Ekspor CSV
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Table Card -->
+  <div class="card border-0" style="background:#0d1b2a;">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0" id="main-table">
+          <thead style="background:#112240;position:sticky;top:0;z-index:1;">
+            <tr>
+              <th class="text-secondary fw-normal small px-3" style="white-space:nowrap;">
+                <i class="bi bi-clock me-1"></i>Timestamp
+              </th>
+              <th class="text-secondary fw-normal small">User Target</th>
+              <th class="text-secondary fw-normal small">IP Address</th>
+              <th class="text-secondary fw-normal small">Negara</th>
+              <th class="text-secondary fw-normal small">Device</th>
+              <th class="text-secondary fw-normal small text-end">RTT (ms)</th>
+              <th class="text-secondary fw-normal small text-end">Skor Risiko</th>
+              <th class="text-secondary fw-normal small">Keputusan AI</th>
+              <th class="text-secondary fw-normal small text-center">ATO?</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            {% if logs %}
+              {% for log in logs %}
+              <tr class="log-row {% if log.risk_level == 'high' %}table-danger bg-opacity-10{% elif log.risk_level == 'medium' %}table-warning bg-opacity-10{% endif %}">
+                <td class="px-3 font-monospace small text-secondary" style="white-space:nowrap;">
+                  {{ log.timestamp }}
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center"
+                         style="width:30px;height:30px;background:#1e3a5f;flex-shrink:0;">
+                      <i class="bi bi-person-fill text-info" style="font-size:.8rem;"></i>
+                    </div>
+                    <span class="text-white small">{{ log.user_target }}</span>
+                  </div>
+                </td>
+                <td class="font-monospace small text-info">{{ log.ip_address }}</td>
+                <td class="small text-white">
+                  {{ log.country }}
+                </td>
+                <td class="small text-secondary">
+                  {% if log.device_type == 'mobile' %}
+                    <i class="bi bi-phone me-1"></i>
+                  {% elif log.device_type == 'tablet' %}
+                    <i class="bi bi-tablet me-1"></i>
+                  {% else %}
+                    <i class="bi bi-laptop me-1"></i>
+                  {% endif %}
+                  {{ log.device_type | capitalize }}
+                </td>
+                <td class="text-end font-monospace small text-white">{{ log.rtt_ms }}</td>
+                <td class="text-end">
+                  {% set score = log.risk_score %}
+                  <div class="d-flex align-items-center justify-content-end gap-2">
+                    <div class="progress flex-grow-1" style="height:4px;max-width:60px;">
+                      <div class="progress-bar {% if score >= 70 %}bg-danger{% elif score >= 30 %}bg-warning{% else %}bg-success{% endif %}"
+                           style="width:{{ score }}%"></div>
+                    </div>
+                    <span class="fw-bold {% if score >= 70 %}text-danger{% elif score >= 30 %}text-warning{% else %}text-success{% endif %} small">
+                      {{ score }}%
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  {% if log.decision == 'allow' %}
+                    <span class="badge rounded-pill" style="background:#0d4f2b;color:#22c55e;">
+                      <i class="bi bi-check-circle me-1"></i>Allow
+                    </span>
+                  {% elif log.decision == 'challenge_mfa' %}
+                    <span class="badge rounded-pill" style="background:#4a3300;color:#f59e0b;">
+                      <i class="bi bi-shield-lock me-1"></i>Challenge MFA
+                    </span>
+                  {% else %}
+                    <span class="badge rounded-pill" style="background:#4f0d0d;color:#ef4444;">
+                      <i class="bi bi-slash-circle me-1"></i>Block
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if log.is_ato %}
+                    <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>ATO</span>
+                  {% else %}
+                    <span class="text-secondary small">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="9" class="text-center text-secondary py-5">
+                  <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                  Tidak ada data login yang cocok dengan filter
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="card-footer border-top border-secondary d-flex align-items-center justify-content-between flex-wrap gap-2"
+         style="background:#0a1628;">
+      <div class="text-secondary small">
+        Menampilkan
+        <strong class="text-white">{{ ((page-1) * per_page + 1) if logs else 0 }}–{{ [page * per_page, total] | min }}</strong>
+        dari <strong class="text-white">{{ total }}</strong> record
+      </div>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link bg-dark border-secondary text-secondary"
+               href="?page={{ page-1 }}&risk={{ risk or '' }}&decision={{ decision or '' }}&search={{ search or '' }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+              <li class="page-item active">
+                <span class="page-link border-primary" style="background:#1a3a6e;">{{ p }}</span>
+              </li>
+            {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+              <li class="page-item">
+                <a class="page-link bg-dark border-secondary text-secondary"
+                   href="?page={{ p }}&risk={{ risk or '' }}&decision={{ decision or '' }}&search={{ search or '' }}">
+                  {{ p }}
+                </a>
+              </li>
+            {% elif p == page - 3 or p == page + 3 %}
+              <li class="page-item disabled">
+                <span class="page-link bg-dark border-secondary text-secondary">…</span>
+              </li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link bg-dark border-secondary text-secondary"
+               href="?page={{ page+1 }}&risk={{ risk or '' }}&decision={{ decision or '' }}&search={{ search or '' }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STYLES ===== -->
+<style>
+  @keyframes blink-live {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+  }
+  .live-badge { animation: blink-live 1.2s ease-in-out infinite; }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .preview-row { animation: slide-in .35s ease; }
+
+  .table-hover > tbody > tr:hover { background: rgba(30,80,160,.15) !important; }
+</style>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+(function () {
+  /* ---- countdown & auto-refresh ---- */
+  let seconds = 10;
+  const countEl = document.getElementById('countdown');
+
+  function tick() {
+    seconds--;
+    if (countEl) countEl.textContent = seconds;
+    if (seconds <= 0) {
+      seconds = 10;
+      fetchLatest();
+    }
+  }
+  setInterval(tick, 1000);
+
+  /* ---- preview fetch ---- */
+  function fetchLatest() {
+    fetch('/api/monitor/latest')
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data) || data.length === 0) return;
+        const container = document.getElementById('live-preview');
+        const placeholder = document.getElementById('preview-placeholder');
+        if (placeholder) placeholder.remove();
+
+        // keep only 3 newest
+        const rows = data.slice(0, 3);
+        container.innerHTML = '';
+        rows.forEach((log, i) => {
+          const decisionColor = log.decision === 'allow'         ? '#22c55e'
+                              : log.decision === 'challenge_mfa' ? '#f59e0b'
+                              :                                    '#ef4444';
+          const riskColor     = log.risk_level === 'high'   ? '#ef4444'
+                              : log.risk_level === 'medium' ? '#f59e0b'
+                              :                               '#22c55e';
+          const div = document.createElement('div');
+          div.className = 'preview-row d-flex align-items-center gap-3 px-3 py-2 border-bottom border-secondary';
+          div.style.borderLeft = `3px solid ${riskColor}`;
+          div.innerHTML = `
+            <span class="font-monospace text-secondary small" style="min-width:150px;">${log.timestamp}</span>
+            <span class="text-white small fw-semibold" style="min-width:120px;">${log.user_target}</span>
+            <span class="font-monospace text-info small" style="min-width:120px;">${log.ip_address}</span>
+            <span class="text-secondary small" style="min-width:80px;">${log.country}</span>
+            <span class="badge ms-auto" style="background:${decisionColor}20;color:${decisionColor};">${log.decision}</span>
+            <span class="fw-bold small" style="color:${riskColor};min-width:40px;">${log.risk_score}%</span>
+          `;
+          container.appendChild(div);
+        });
+      })
+      .catch(() => {}); // silent fail
+  }
+
+  /* initial call */
+  fetchLatest();
+})();
+</script>
+{% endblock %}

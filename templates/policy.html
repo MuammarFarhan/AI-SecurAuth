@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center mb-4">
+    <i class="bi bi-sliders fs-3 text-warning me-3"></i>
+    <div>
+      <h2 class="mb-0 fw-bold">Adaptive Policy &amp; Rule Engine</h2>
+      <small class="text-muted">Konfigurasi ambang batas risiko dan aturan heuristik untuk respons otomatis</small>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       BAGIAN ATAS: Konfigurasi Ambang Batas Risiko
+  ============================================================ -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-dark d-flex align-items-center">
+      <i class="bi bi-sliders2 me-2"></i>
+      <strong>Konfigurasi Ambang Batas Risiko</strong>
+    </div>
+    <div class="card-body">
+      <form id="thresholdForm" method="POST" action="/api/policy/thresholds">
+
+        <div class="row g-4 mb-4">
+          <!-- MFA Threshold -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-shield-lock-fill text-warning me-1"></i>
+              MFA Threshold
+              <span class="text-muted small">(Risiko &gt; nilai ini → wajib MFA)</span>
+            </label>
+            <div class="d-flex align-items-center gap-3">
+              <input
+                type="range"
+                class="form-range flex-grow-1"
+                id="mfaSlider"
+                name="mfa_threshold"
+                min="10" max="90" step="1"
+                value="{{ thresholds.mfa_threshold }}">
+              <span class="badge bg-warning text-dark fs-6 px-3" id="mfaValue" style="min-width:60px">
+                {{ thresholds.mfa_threshold }}%
+              </span>
+            </div>
+          </div>
+
+          <!-- Block Threshold -->
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-shield-x-fill text-danger me-1"></i>
+              Block Threshold
+              <span class="text-muted small">(Risiko &gt; nilai ini → Blokir akses)</span>
+            </label>
+            <div class="d-flex align-items-center gap-3">
+              <input
+                type="range"
+                class="form-range flex-grow-1"
+                id="blockSlider"
+                name="block_threshold"
+                min="10" max="100" step="1"
+                value="{{ thresholds.block_threshold }}">
+              <span class="badge bg-danger fs-6 px-3" id="blockValue" style="min-width:60px">
+                {{ thresholds.block_threshold }}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Diagram 3 Zona -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold text-muted">
+            <i class="bi bi-layout-three-columns me-1"></i>
+            Visualisasi Zona Risiko
+          </label>
+          <div class="position-relative" style="height: 44px;">
+            <div id="zoneBar" class="rounded-3 overflow-hidden d-flex h-100 border">
+              <!-- Zone Aman (Hijau) -->
+              <div id="zoneSafe"
+                   class="bg-success bg-opacity-75 d-flex align-items-center justify-content-center text-white small fw-semibold"
+                   style="transition: width 0.3s;">
+                <i class="bi bi-check-circle me-1"></i>
+                <span id="zoneSafeLabel">AMAN (Allow)</span>
+              </div>
+              <!-- Zone MFA (Kuning) -->
+              <div id="zoneMfa"
+                   class="bg-warning d-flex align-items-center justify-content-center text-dark small fw-semibold"
+                   style="transition: width 0.3s;">
+                <i class="bi bi-shield-lock me-1"></i>
+                <span id="zoneMfaLabel">MFA</span>
+              </div>
+              <!-- Zone Block (Merah) -->
+              <div id="zoneBlock"
+                   class="bg-danger d-flex align-items-center justify-content-center text-white small fw-semibold"
+                   style="transition: width 0.3s;">
+                <i class="bi bi-ban me-1"></i>
+                <span id="zoneBlockLabel">BLOKIR</span>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex justify-content-between mt-1 text-muted" style="font-size:0.75rem;">
+            <span>0%</span>
+            <span id="mfaMarker" class="text-warning fw-bold">▲ MFA: {{ thresholds.mfa_threshold }}%</span>
+            <span id="blockMarker" class="text-danger fw-bold">▲ Block: {{ thresholds.block_threshold }}%</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+        <!-- Mode Operasi -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">
+            <i class="bi bi-gear-fill me-1 text-secondary"></i>
+            Mode Operasi
+          </label>
+          <select class="form-select w-auto" name="operation_mode">
+            <option value="passive" {% if thresholds.operation_mode == 'passive' %}selected{% endif %}>
+              🔵 Passive — Monitoring Only (tidak ada enforcement)
+            </option>
+            <option value="active" {% if thresholds.operation_mode == 'active' %}selected{% endif %}>
+              🔴 Active — Enforcement (MFA &amp; Block dijalankan)
+            </option>
+          </select>
+          <div class="form-text">
+            Mode Passive hanya mencatat log. Mode Active menerapkan MFA dan pemblokiran secara nyata.
+          </div>
+        </div>
+
+        <!-- Tombol Simpan -->
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-warning fw-semibold">
+            <i class="bi bi-floppy-fill me-1"></i>Simpan Konfigurasi
+          </button>
+          <button type="reset" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       BAGIAN BAWAH: Daftar Aturan Heuristik Kustom
+  ============================================================ -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-dark text-white d-flex align-items-center justify-content-between">
+      <div>
+        <i class="bi bi-list-check me-2"></i>
+        <strong>Daftar Aturan Heuristik Kustom</strong>
+      </div>
+      <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addRuleModal">
+        <i class="bi bi-plus-circle-fill me-1"></i>Tambah Aturan Baru
+      </button>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Nama Aturan</th>
+              <th>Kondisi</th>
+              <th>Operator</th>
+              <th>Nilai</th>
+              <th>Aksi</th>
+              <th class="text-center">Status</th>
+              <th>Dibuat</th>
+              <th class="text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rule in rules %}
+            <tr>
+              <td class="px-3 fw-semibold">{{ rule.rule_name }}</td>
+              <td><code>{{ rule.condition_field }}</code></td>
+              <td>
+                <span class="badge bg-secondary">{{ rule.condition_op }}</span>
+              </td>
+              <td><code>{{ rule.condition_value }}</code></td>
+              <td>
+                {% if rule.action == 'block' %}
+                  <span class="badge bg-danger"><i class="bi bi-ban me-1"></i>Block</span>
+                {% elif rule.action == 'allow' %}
+                  <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Allow</span>
+                {% elif rule.action == 'require_mfa' %}
+                  <span class="badge bg-warning text-dark"><i class="bi bi-shield-lock me-1"></i>Require MFA</span>
+                {% elif rule.action == 'adjust_score' %}
+                  <span class="badge bg-info text-dark"><i class="bi bi-graph-up me-1"></i>Adjust Score ({{ rule.score_delta }})</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ rule.action }}</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <!-- Toggle Switch -->
+                <div class="form-check form-switch d-inline-block mb-0">
+                  <input
+                    class="form-check-input rule-toggle"
+                    type="checkbox"
+                    role="switch"
+                    id="ruleToggle{{ rule.id }}"
+                    data-rule-id="{{ rule.id }}"
+                    {% if rule.is_active %}checked{% endif %}
+                    style="cursor:pointer; width:2.5em; height:1.3em;">
+                  <label class="form-check-label visually-hidden" for="ruleToggle{{ rule.id }}">Toggle</label>
+                </div>
+              </td>
+              <td>
+                <span class="text-muted small">{{ rule.created_at }}</span>
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-outline-danger delete-rule-btn" data-rule-id="{{ rule.id }}" title="Hapus Aturan">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-5">
+                <i class="bi bi-clipboard-x fs-3 d-block mb-2"></i>
+                Belum ada aturan heuristik. Klik "Tambah Aturan Baru" untuk memulai.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container-fluid -->
+
+<!-- ============================================================
+     MODAL: Tambah Aturan Baru
+============================================================ -->
+<div class="modal fade" id="addRuleModal" tabindex="-1" aria-labelledby="addRuleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="addRuleModalLabel">
+          <i class="bi bi-plus-circle-fill me-2 text-success"></i>Tambah Aturan Heuristik Baru
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+
+      <form method="POST" action="/api/policy/rules">
+        <div class="modal-body">
+          <div class="row g-3">
+
+            <!-- Nama Aturan -->
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="ruleName">Nama Aturan</label>
+              <input type="text" class="form-control" id="ruleName" name="rule_name"
+                     placeholder="cth: Blokir IP Korea Selatan"
+                     required maxlength="100">
+            </div>
+
+            <!-- Condition Field -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="conditionField">Field Kondisi</label>
+              <select class="form-select" id="conditionField" name="condition_field" required>
+                <option value="" disabled selected>— Pilih Field —</option>
+                <option value="is_attack_ip">is_attack_ip</option>
+                <option value="country">country</option>
+                <option value="rtt_ms">rtt_ms</option>
+                <option value="asn">asn</option>
+                <option value="browser">browser</option>
+              </select>
+            </div>
+
+            <!-- Condition Operator -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="conditionOp">Operator</label>
+              <select class="form-select" id="conditionOp" name="condition_op" required>
+                <option value="" disabled selected>— Pilih Operator —</option>
+                <option value="equals">equals (=)</option>
+                <option value="greater_than">greater_than (&gt;)</option>
+                <option value="less_than">less_than (&lt;)</option>
+                <option value="in">in (daftar)</option>
+              </select>
+            </div>
+
+            <!-- Condition Value -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold" for="conditionValue">Nilai</label>
+              <input type="text" class="form-control" id="conditionValue" name="condition_value"
+                     placeholder="cth: KR atau 500"
+                     required>
+            </div>
+
+            <!-- Action -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="ruleAction">Aksi</label>
+              <select class="form-select" id="ruleAction" name="action" required onchange="toggleScoreDelta(this.value)">
+                <option value="" disabled selected>— Pilih Aksi —</option>
+                <option value="block">🚫 Block</option>
+                <option value="allow">✅ Allow</option>
+                <option value="require_mfa">🔐 Require MFA</option>
+                <option value="adjust_score">📊 Adjust Score</option>
+              </select>
+            </div>
+
+            <!-- Score Delta (hanya tampil jika adjust_score) -->
+            <div class="col-md-6" id="scoreDeltaGroup" style="display:none;">
+              <label class="form-label fw-semibold" for="scoreDelta">
+                Score Delta <span class="text-muted small">(+/- nilai risiko)</span>
+              </label>
+              <input type="number" class="form-control" id="scoreDelta" name="score_delta"
+                     placeholder="cth: +20 atau -10" min="-100" max="100" step="1">
+            </div>
+
+          </div><!-- /row -->
+        </div><!-- /modal-body -->
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-lg me-1"></i>Batal
+          </button>
+          <button type="submit" class="btn btn-dark">
+            <i class="bi bi-plus-circle-fill me-1"></i>Tambah Aturan
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     Scripts
+============================================================ -->
+<script>
+// ---- Slider real-time update ----
+const mfaSlider   = document.getElementById('mfaSlider');
+const blockSlider = document.getElementById('blockSlider');
+const mfaVal      = document.getElementById('mfaValue');
+const blockVal    = document.getElementById('blockValue');
+const mfaMarker   = document.getElementById('mfaMarker');
+const blockMarker = document.getElementById('blockMarker');
+
+function updateZoneBar() {
+  const mfa   = parseInt(mfaSlider.value,   10);
+  const block = parseInt(blockSlider.value, 10);
+  const safeMfa   = Math.min(mfa, block);
+  const mfaBlock  = Math.max(0, block - safeMfa);
+  const remaining = 100 - block;
+
+  mfaVal.textContent   = mfa   + '%';
+  blockVal.textContent = block + '%';
+  mfaMarker.textContent   = '▲ MFA: '   + mfa   + '%';
+  blockMarker.textContent = '▲ Block: ' + block + '%';
+
+  document.getElementById('zoneSafe').style.width  = safeMfa  + '%';
+  document.getElementById('zoneMfa').style.width   = mfaBlock + '%';
+  document.getElementById('zoneBlock').style.width = remaining + '%';
+
+  document.getElementById('zoneSafeLabel').textContent  = safeMfa  > 8 ? `AMAN (0–${safeMfa}%)`   : '';
+  document.getElementById('zoneMfaLabel').textContent   = mfaBlock > 5 ? `MFA (${safeMfa}–${block}%)`  : '';
+  document.getElementById('zoneBlockLabel').textContent = remaining > 5 ? `BLOKIR (${block}–100%)` : '';
+}
+
+mfaSlider.addEventListener('input',   updateZoneBar);
+blockSlider.addEventListener('input', updateZoneBar);
+updateZoneBar(); // init
+
+// ---- Score Delta visibility ----
+function toggleScoreDelta(val) {
+  const grp = document.getElementById('scoreDeltaGroup');
+  grp.style.display = val === 'adjust_score' ? '' : 'none';
+  document.getElementById('scoreDelta').required = val === 'adjust_score';
+}
+
+// ---- Rule Toggle ----
+document.querySelectorAll('.rule-toggle').forEach(toggle => {
+  toggle.addEventListener('change', function () {
+    const id = this.dataset.ruleId;
+    fetch(`/api/policy/rules/${id}/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: this.checked })
+    })
+    .then(r => { if (!r.ok) { this.checked = !this.checked; alert('Gagal mengubah status aturan.'); } })
+    .catch(() => { this.checked = !this.checked; alert('Error jaringan.'); });
+  });
+});
+
+// ---- Rule Delete ----
+document.querySelectorAll('.delete-rule-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const id = this.dataset.ruleId;
+    if (!confirm('Hapus aturan ini? Tindakan tidak dapat dibatalkan.')) return;
+    fetch(`/api/policy/rules/${id}`, { method: 'DELETE' })
+    .then(r => { if (r.ok) { this.closest('tr').remove(); } else { alert('Gagal menghapus aturan.'); } })
+    .catch(() => alert('Error jaringan.'));
+  });
+});
+</script>
+{% endblock %}

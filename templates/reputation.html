@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center mb-4">
+    <i class="bi bi-person-badge-fill fs-3 text-danger me-3"></i>
+    <div>
+      <h2 class="mb-0 fw-bold">User &amp; Identity Reputation Management</h2>
+      <small class="text-muted">Kelola daftar Blacklist dan Whitelist untuk IP, subnet, dan ASN</small>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Bootstrap Tabs: Blacklist / Whitelist
+  ============================================================ -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+      <ul class="nav nav-tabs card-header-tabs" id="reputationTabs" role="tablist">
+        <!-- Blacklist Tab -->
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link active fw-semibold d-flex align-items-center gap-2"
+            id="blacklist-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#blacklistPane"
+            type="button" role="tab"
+            aria-controls="blacklistPane" aria-selected="true">
+            <i class="bi bi-shield-x text-danger"></i>
+            Blacklist
+            <span class="badge bg-danger">BLACKLIST</span>
+            <span class="badge bg-secondary rounded-pill ms-1">{{ blacklist | length }}</span>
+          </button>
+        </li>
+        <!-- Whitelist Tab -->
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link fw-semibold d-flex align-items-center gap-2"
+            id="whitelist-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#whitelistPane"
+            type="button" role="tab"
+            aria-controls="whitelistPane" aria-selected="false">
+            <i class="bi bi-shield-check text-success"></i>
+            Whitelist
+            <span class="badge bg-success">WHITELIST</span>
+            <span class="badge bg-secondary rounded-pill ms-1">{{ whitelist | length }}</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="tab-content" id="reputationTabsContent">
+
+      <!-- =====================================================
+           TAB PANE 1: Blacklist
+      ===================================================== -->
+      <div class="tab-pane fade show active" id="blacklistPane" role="tabpanel" aria-labelledby="blacklist-tab">
+        <div class="card-body border-bottom d-flex align-items-center justify-content-between py-3">
+          <div>
+            <i class="bi bi-ban text-danger me-1"></i>
+            <strong>Daftar Entry Blacklist</strong>
+            <span class="text-muted small ms-2">— Akses dari entri berikut akan diblokir secara otomatis.</span>
+          </div>
+          <button class="btn btn-danger btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#addReputationModal"
+                  onclick="setModalType('blacklist')">
+            <i class="bi bi-plus-circle-fill me-1"></i>Tambah Blacklist
+          </button>
+        </div>
+        <div class="p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="px-3" width="50">No</th>
+                  <th>Entry</th>
+                  <th>Tipe</th>
+                  <th>Alasan</th>
+                  <th>Ditambahkan</th>
+                  <th class="text-center" width="80">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in blacklist %}
+                <tr id="bl-row-{{ item.id }}">
+                  <td class="px-3 text-muted">{{ loop.index }}</td>
+                  <td>
+                    <code class="text-danger">{{ item.entry_value }}</code>
+                  </td>
+                  <td>
+                    {% if item.entry_type == 'ip' %}
+                      <span class="badge bg-danger"><i class="bi bi-hdd-network me-1"></i>IP</span>
+                    {% elif item.entry_type == 'subnet' %}
+                      <span class="badge bg-warning text-dark"><i class="bi bi-diagram-2 me-1"></i>Subnet</span>
+                    {% elif item.entry_type == 'asn' %}
+                      <span class="badge bg-secondary"><i class="bi bi-router me-1"></i>ASN</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ item.entry_type }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted small">{{ item.reason or '—' }}</td>
+                  <td class="text-muted small">{{ item.created_at }}</td>
+                  <td class="text-center">
+                    <button class="btn btn-sm btn-outline-danger delete-reputation-btn"
+                            data-item-id="{{ item.id }}"
+                            data-row-prefix="bl"
+                            title="Hapus dari Blacklist">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr id="bl-empty">
+                  <td colspan="6" class="text-center text-muted py-5">
+                    <i class="bi bi-shield-check fs-3 text-success d-block mb-2"></i>
+                    Blacklist kosong. Tidak ada entry yang diblokir saat ini.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /blacklistPane -->
+
+      <!-- =====================================================
+           TAB PANE 2: Whitelist
+      ===================================================== -->
+      <div class="tab-pane fade" id="whitelistPane" role="tabpanel" aria-labelledby="whitelist-tab">
+        <div class="card-body border-bottom d-flex align-items-center justify-content-between py-3">
+          <div>
+            <i class="bi bi-shield-check text-success me-1"></i>
+            <strong>Daftar Entry Whitelist</strong>
+            <span class="text-muted small ms-2">— Entry berikut selalu diizinkan tanpa pemeriksaan tambahan.</span>
+          </div>
+          <button class="btn btn-success btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#addReputationModal"
+                  onclick="setModalType('whitelist')">
+            <i class="bi bi-plus-circle-fill me-1"></i>Tambah Whitelist
+          </button>
+        </div>
+        <div class="p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="px-3" width="50">No</th>
+                  <th>Entry</th>
+                  <th>Tipe</th>
+                  <th>Alasan</th>
+                  <th>Ditambahkan</th>
+                  <th class="text-center" width="80">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in whitelist %}
+                <tr id="wl-row-{{ item.id }}">
+                  <td class="px-3 text-muted">{{ loop.index }}</td>
+                  <td>
+                    <code class="text-success">{{ item.entry_value }}</code>
+                  </td>
+                  <td>
+                    {% if item.entry_type == 'ip' %}
+                      <span class="badge bg-success"><i class="bi bi-hdd-network me-1"></i>IP</span>
+                    {% elif item.entry_type == 'subnet' %}
+                      <span class="badge bg-info text-dark"><i class="bi bi-diagram-2 me-1"></i>Subnet</span>
+                    {% elif item.entry_type == 'asn' %}
+                      <span class="badge bg-secondary"><i class="bi bi-router me-1"></i>ASN</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ item.entry_type }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted small">{{ item.reason or '—' }}</td>
+                  <td class="text-muted small">{{ item.created_at }}</td>
+                  <td class="text-center">
+                    <button class="btn btn-sm btn-outline-danger delete-reputation-btn"
+                            data-item-id="{{ item.id }}"
+                            data-row-prefix="wl"
+                            title="Hapus dari Whitelist">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr id="wl-empty">
+                  <td colspan="6" class="text-center text-muted py-5">
+                    <i class="bi bi-clipboard-x fs-3 d-block mb-2"></i>
+                    Whitelist kosong. Tambahkan IP/subnet/ASN terpercaya.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /whitelistPane -->
+
+    </div><!-- /tab-content -->
+  </div><!-- /card -->
+
+</div><!-- /container-fluid -->
+
+<!-- ============================================================
+     SHARED MODAL: Tambah Blacklist / Whitelist
+============================================================ -->
+<div class="modal fade" id="addReputationModal" tabindex="-1" aria-labelledby="addReputationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header" id="reputationModalHeader">
+        <!-- Dinamis via JS -->
+        <h5 class="modal-title" id="addReputationModalLabel">Tambah Entry</h5>
+        <button type="button" class="btn-close" id="reputationModalClose" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+
+      <form method="POST" action="/api/reputation">
+        <div class="modal-body">
+          <!-- Hidden: type (blacklist/whitelist) -->
+          <input type="hidden" name="type" id="reputationType" value="blacklist">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="entryValue">
+              <i class="bi bi-hdd-network me-1"></i>Nilai Entry
+              <span class="text-muted small">(IP, subnet CIDR, atau nomor ASN)</span>
+            </label>
+            <input type="text" class="form-control" id="entryValue" name="entry_value"
+                   placeholder="cth: 192.168.1.0/24 atau AS15169"
+                   required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="entryType">Tipe Entry</label>
+            <select class="form-select" id="entryType" name="entry_type" required>
+              <option value="" disabled selected>— Pilih Tipe —</option>
+              <option value="ip">IP Address</option>
+              <option value="subnet">Subnet (CIDR)</option>
+              <option value="asn">ASN</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="entryReason">Alasan</label>
+            <input type="text" class="form-control" id="entryReason" name="reason"
+                   placeholder="cth: TOR exit node, Brute force detected"
+                   maxlength="255">
+          </div>
+
+          <!-- Info box dinamis -->
+          <div id="reputationInfo" class="alert alert-danger small mb-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Entry akan ditambahkan ke <strong>Blacklist</strong> dan langsung aktif.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-lg me-1"></i>Batal
+          </button>
+          <button type="submit" class="btn" id="reputationSubmitBtn">
+            <i class="bi bi-plus-circle-fill me-1"></i>Tambah
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     Scripts
+============================================================ -->
+<script>
+// ---- Set modal type (blacklist / whitelist) ----
+function setModalType(type) {
+  const isBlacklist = type === 'blacklist';
+  document.getElementById('reputationType').value = type;
+
+  const header = document.getElementById('reputationModalHeader');
+  header.className = 'modal-header ' + (isBlacklist ? 'bg-danger text-white' : 'bg-success text-white');
+
+  document.getElementById('addReputationModalLabel').textContent =
+    (isBlacklist ? '🚫 Tambah Entry Blacklist' : '✅ Tambah Entry Whitelist');
+
+  document.getElementById('reputationModalClose').className =
+    'btn-close ' + (isBlacklist ? 'btn-close-white' : 'btn-close-white');
+
+  const info = document.getElementById('reputationInfo');
+  info.className = 'alert small mb-0 ' + (isBlacklist ? 'alert-danger' : 'alert-success');
+  info.innerHTML = `<i class="bi bi-info-circle me-1"></i>Entry akan ditambahkan ke <strong>${isBlacklist ? 'Blacklist' : 'Whitelist'}</strong> dan langsung aktif.`;
+
+  const btn = document.getElementById('reputationSubmitBtn');
+  btn.className = 'btn ' + (isBlacklist ? 'btn-danger' : 'btn-success');
+  btn.innerHTML = `<i class="bi bi-plus-circle-fill me-1"></i>Tambah ${isBlacklist ? 'Blacklist' : 'Whitelist'}`;
+}
+
+// ---- Delete reputation entry ----
+document.querySelectorAll('.delete-reputation-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    const id     = this.dataset.itemId;
+    const prefix = this.dataset.rowPrefix;
+    if (!confirm('Hapus entry ini dari daftar?')) return;
+    fetch(`/api/reputation/${id}`, { method: 'DELETE' })
+      .then(r => {
+        if (r.ok) {
+          const row = document.getElementById(`${prefix}-row-${id}`);
+          if (row) row.remove();
+        } else {
+          alert('Gagal menghapus entry.');
+        }
+      })
+      .catch(() => alert('Error jaringan.'));
+  });
+});
+</script>
+{% endblock %}

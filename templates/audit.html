@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Audit Trail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-journal-text me-2 text-primary"></i>Audit Trail</h4>
+    <small class="text-muted">Riwayat seluruh aktivitas pengguna sistem (immutable log)</small>
+  </div>
+  <span class="badge bg-primary fs-6">{{ logs|length }} Entri Terbaru</span>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+    <span class="fw-semibold"><i class="bi bi-shield-lock me-1 text-secondary"></i> Log Aktivitas (200 Terbaru)</span>
+    <div class="d-flex gap-2">
+      <input type="text" id="searchAudit" class="form-control form-control-sm" placeholder="Cari aksi, pengguna..." style="width:220px" oninput="filterAudit(this.value)">
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="auditTable">
+        <thead class="table-light">
+          <tr>
+            <th style="width:160px">Waktu</th>
+            <th style="width:120px">Pengguna</th>
+            <th style="width:160px">Aksi</th>
+            <th style="width:120px">Target</th>
+            <th>Detail</th>
+            <th style="width:120px">IP Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td class="text-muted small">
+              <i class="bi bi-clock me-1"></i>
+              {{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '-' }}
+            </td>
+            <td>
+              {% if log.nama %}
+                <div class="fw-semibold small">{{ log.nama }}</div>
+                <div class="text-muted" style="font-size:0.75rem">@{{ log.username }}</div>
+              {% else %}
+                <span class="text-muted small">System</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set action = log.action|lower %}
+              {% if 'login' in action %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
+                  <i class="bi bi-box-arrow-in-right me-1"></i>{{ log.action }}
+                </span>
+              {% elif 'blacklist' in action or 'delete' in action %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                  <i class="bi bi-ban me-1"></i>{{ log.action }}
+                </span>
+              {% elif 'whitelist' in action %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                  <i class="bi bi-check-circle me-1"></i>{{ log.action }}
+                </span>
+              {% elif 'threshold' in action or 'rule' in action or 'policy' in action %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">
+                  <i class="bi bi-sliders me-1"></i>{{ log.action }}
+                </span>
+              {% elif 'model' in action %}
+                <span class="badge bg-purple" style="background:rgba(139,92,246,0.1);color:#7c3aed;border:1px solid #7c3aed">
+                  <i class="bi bi-cpu me-1"></i>{{ log.action }}
+                </span>
+              {% elif 'incident' in action %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                  <i class="bi bi-shield-exclamation me-1"></i>{{ log.action }}
+                </span>
+              {% elif 'simulate' in action %}
+                <span class="badge bg-info bg-opacity-10 text-info border border-info">
+                  <i class="bi bi-play-circle me-1"></i>{{ log.action }}
+                </span>
+              {% else %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary">
+                  <i class="bi bi-gear me-1"></i>{{ log.action }}
+                </span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">
+              {% if log.target_type %}
+                <code>{{ log.target_type }}</code>
+                {% if log.target_id %}#{{ log.target_id }}{% endif %}
+              {% else %} - {% endif %}
+            </td>
+            <td class="small" style="max-width:280px">
+              <span class="text-truncate d-inline-block" style="max-width:270px" title="{{ log.detail }}">
+                {{ log.detail or '-' }}
+              </span>
+            </td>
+            <td class="small font-monospace text-muted">{{ log.ip_address or '-' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">
+              <i class="bi bi-journal-x fs-2 d-block mb-2"></i>Belum ada riwayat audit.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card-footer bg-white border-top py-2">
+    <small class="text-muted">
+      <i class="bi bi-lock-fill me-1 text-secondary"></i>
+      Audit log bersifat <strong>immutable</strong> — tidak dapat diubah atau dihapus oleh siapapun.
+    </small>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterAudit(q) {
+  const rows = document.querySelectorAll('#auditTable tbody tr');
+  q = q.toLowerCase();
+  rows.forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}
+

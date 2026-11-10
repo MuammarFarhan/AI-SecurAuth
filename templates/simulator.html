@@ -1,0 +1,421 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <i class="bi bi-cpu fs-3 text-warning"></i>
+    <div>
+      <h2 class="mb-0 fw-bold text-white">AI Risk Assessment &amp; Simulator</h2>
+      <small class="text-secondary">Simulasi skenario login &amp; analisis risiko ATO secara real-time</small>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- ========== LEFT: Input Form ========== -->
+    <div class="col-lg-5">
+      <div class="card border-0 h-100" style="background:#112240;">
+        <div class="card-header border-bottom border-secondary d-flex align-items-center gap-2 py-3">
+          <i class="bi bi-sliders text-warning"></i>
+          <span class="fw-semibold text-white">Parameter Simulasi</span>
+        </div>
+        <div class="card-body">
+          <form id="sim-form" novalidate>
+
+            <!-- IP Address -->
+            <div class="mb-3">
+              <label class="form-label text-secondary small mb-1">
+                <i class="bi bi-hdd-network me-1"></i>IP Address
+              </label>
+              <input type="text" id="f-ip" name="ip_address"
+                     class="form-control bg-dark text-white border-secondary"
+                     placeholder="e.g. 103.28.47.21" required>
+            </div>
+
+            <!-- ASN -->
+            <div class="mb-3">
+              <label class="form-label text-secondary small mb-1">
+                <i class="bi bi-diagram-3 me-1"></i>ASN
+              </label>
+              <input type="text" id="f-asn" name="asn"
+                     class="form-control bg-dark text-white border-secondary"
+                     placeholder="misal AS62748">
+            </div>
+
+            <!-- Country -->
+            <div class="mb-3">
+              <label class="form-label text-secondary small mb-1">
+                <i class="bi bi-globe2 me-1"></i>Negara
+              </label>
+              <select id="f-country" name="country" class="form-select bg-dark text-white border-secondary">
+                <option>Indonesia</option>
+                <option>Russia</option>
+                <option>Ukraine</option>
+                <option>USA</option>
+                <option>Germany</option>
+                <option>Netherlands</option>
+                <option>France</option>
+                <option>Thailand</option>
+                <option>North Korea</option>
+                <option>Iran</option>
+                <option>Unknown</option>
+              </select>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <!-- Device Type -->
+              <div class="col-md-6">
+                <label class="form-label text-secondary small mb-1">
+                  <i class="bi bi-device-ssd me-1"></i>Device Type
+                </label>
+                <select id="f-device" name="device_type" class="form-select bg-dark text-white border-secondary">
+                  <option value="desktop">Desktop</option>
+                  <option value="mobile">Mobile</option>
+                  <option value="tablet">Tablet</option>
+                </select>
+              </div>
+              <!-- OS -->
+              <div class="col-md-6">
+                <label class="form-label text-secondary small mb-1">
+                  <i class="bi bi-windows me-1"></i>OS
+                </label>
+                <select id="f-os" name="os" class="form-select bg-dark text-white border-secondary">
+                  <option>Windows 11</option>
+                  <option>Windows 10</option>
+                  <option>Linux</option>
+                  <option>macOS</option>
+                  <option>Android 14</option>
+                  <option>Android 13</option>
+                  <option>iOS 17</option>
+                  <option>iOS 16</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Browser -->
+            <div class="mb-3">
+              <label class="form-label text-secondary small mb-1">
+                <i class="bi bi-browser-chrome me-1"></i>Browser
+              </label>
+              <select id="f-browser" name="browser" class="form-select bg-dark text-white border-secondary">
+                <option>Chrome 128</option>
+                <option>Firefox 119</option>
+                <option>Safari 17</option>
+                <option>Edge 118</option>
+                <option>IE 11</option>
+              </select>
+            </div>
+
+            <!-- RTT -->
+            <div class="mb-3">
+              <label class="form-label text-secondary small mb-1">
+                <i class="bi bi-speedometer2 me-1"></i>RTT (ms)
+              </label>
+              <input type="number" id="f-rtt" name="rtt_ms" min="1" max="9999"
+                     class="form-control bg-dark text-white border-secondary"
+                     placeholder="e.g. 320" required>
+            </div>
+
+            <!-- Toggle: Attack IP -->
+            <div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded"
+                 style="background:#0d1b2a;">
+              <div>
+                <div class="text-white small fw-semibold">Is Attack IP?</div>
+                <div class="text-secondary" style="font-size:.75rem;">IP tercantum di threat intelligence</div>
+              </div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="f-attack" name="is_attack_ip"
+                       role="switch" style="width:2.5em;height:1.3em;">
+              </div>
+            </div>
+
+            <!-- Toggle: Model -->
+            <div class="d-flex align-items-center justify-content-between mb-4 p-2 rounded"
+                 style="background:#0d1b2a;">
+              <div>
+                <div class="text-white small fw-semibold">Gunakan XGBoost / Random Forest</div>
+                <div class="text-secondary" style="font-size:.75rem;">
+                  <span id="model-label-off">OFF = Logistic Regression</span>
+                  <span id="model-label-on" class="d-none">ON = XGBoost + RF Ensemble</span>
+                </div>
+              </div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="f-model" name="use_advanced_model"
+                       role="switch" style="width:2.5em;height:1.3em;">
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" id="btn-submit" class="btn btn-primary btn-lg w-100 fw-semibold">
+              <span id="btn-normal"><i class="bi bi-play-circle me-2"></i>Jalankan Simulasi</span>
+              <span id="btn-loading" class="d-none">
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                Memproses…
+              </span>
+            </button>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== RIGHT: Results Panel ========== -->
+    <div class="col-lg-7">
+      <div class="card border-0" style="background:#112240;min-height:300px;">
+        <div class="card-header border-bottom border-secondary d-flex align-items-center gap-2 py-3">
+          <i class="bi bi-graph-up-arrow text-warning"></i>
+          <span class="fw-semibold text-white">Hasil Analisis AI</span>
+          <span id="result-model-badge" class="badge bg-secondary ms-auto d-none"></span>
+        </div>
+        <div class="card-body">
+
+          <!-- Empty / initial state -->
+          <div id="result-empty" class="text-center py-5 text-secondary">
+            <i class="bi bi-shield-shaded fs-1 d-block mb-3 opacity-25"></i>
+            <p class="mb-0">Isi form dan jalankan simulasi untuk melihat hasil penilaian risiko.</p>
+          </div>
+
+          <!-- Error state -->
+          <div id="result-error" class="alert alert-danger d-none" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="error-msg">Terjadi kesalahan.</span>
+          </div>
+
+          <!-- Result content -->
+          <div id="result-content" class="d-none">
+
+            <!-- Gauge + Decision (side by side) -->
+            <div class="row g-3 mb-4 align-items-center">
+              <!-- Gauge -->
+              <div class="col-sm-5 text-center">
+                <div class="gauge-container mx-auto position-relative"
+                     style="width:150px;height:150px;">
+                  <div id="gauge-circle"
+                       style="width:150px;height:150px;border-radius:50%;
+                              background:conic-gradient(#22c55e 0deg, #22c55e 0deg, #1e293b 0deg 360deg);
+                              display:flex;align-items:center;justify-content:center;
+                              transition:background .6s ease;">
+                    <div style="width:110px;height:110px;border-radius:50%;
+                                background:#112240;display:flex;flex-direction:column;
+                                align-items:center;justify-content:center;">
+                      <span id="gauge-pct" class="fw-bold text-white" style="font-size:2rem;">0%</span>
+                      <span class="text-secondary small">Risk Score</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-2 small text-secondary" id="gauge-level-text">—</div>
+              </div>
+              <!-- Decision badge -->
+              <div class="col-sm-7 text-center">
+                <div class="mb-2 text-secondary small text-uppercase letter-spacing-1">Keputusan AI</div>
+                <div id="decision-badge"
+                     class="d-inline-flex align-items-center gap-2 px-4 py-3 rounded-3 fw-bold fs-5"
+                     style="background:#1e293b;color:#94a3b8;">
+                  <i class="bi bi-hourglass" id="decision-icon"></i>
+                  <span id="decision-text">—</span>
+                </div>
+                <div class="mt-3 text-secondary small" id="decision-detail"></div>
+              </div>
+            </div>
+
+            <hr class="border-secondary my-3">
+
+            <!-- Feature Contributions Table -->
+            <div class="mb-3">
+              <h6 class="text-warning mb-2 fw-semibold">
+                <i class="bi bi-bar-chart-steps me-1"></i>Kontribusi Fitur
+              </h6>
+              <div class="table-responsive">
+                <table class="table table-dark table-sm align-middle mb-0" style="font-size:.85rem;">
+                  <thead>
+                    <tr class="text-secondary">
+                      <th class="fw-normal">Fitur</th>
+                      <th class="fw-normal text-end" style="width:90px;">Kontribusi</th>
+                      <th class="fw-normal">Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody id="feature-table-body">
+                    <tr>
+                      <td colspan="3" class="text-secondary text-center">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Model Info -->
+            <div class="p-2 rounded small text-secondary d-flex align-items-center gap-2"
+                 style="background:#0d1b2a;">
+              <i class="bi bi-info-circle text-info"></i>
+              Model: <strong class="text-white" id="info-model">—</strong>
+              &nbsp;|&nbsp; Latency: <strong class="text-white" id="info-latency">—</strong>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STYLES ===== -->
+<style>
+  .form-switch .form-check-input:checked { background-color: #f59e0b; border-color: #f59e0b; }
+  .form-control:focus, .form-select:focus { border-color: #f59e0b !important; box-shadow: 0 0 0 .2rem rgba(245,158,11,.2); }
+</style>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+(function () {
+  const form        = document.getElementById('sim-form');
+  const btnNormal   = document.getElementById('btn-normal');
+  const btnLoading  = document.getElementById('btn-loading');
+  const btnSubmit   = document.getElementById('btn-submit');
+
+  const resultEmpty   = document.getElementById('result-empty');
+  const resultError   = document.getElementById('result-error');
+  const resultContent = document.getElementById('result-content');
+  const errorMsg      = document.getElementById('error-msg');
+
+  const gaugeCircle   = document.getElementById('gauge-circle');
+  const gaugePct      = document.getElementById('gauge-pct');
+  const gaugeLevelTxt = document.getElementById('gauge-level-text');
+  const decisionBadge = document.getElementById('decision-badge');
+  const decisionIcon  = document.getElementById('decision-icon');
+  const decisionText  = document.getElementById('decision-text');
+  const decisionDetail = document.getElementById('decision-detail');
+  const featureTbody  = document.getElementById('feature-table-body');
+  const infoModel     = document.getElementById('info-model');
+  const infoLatency   = document.getElementById('info-latency');
+  const modelBadge    = document.getElementById('result-model-badge');
+
+  const fModel      = document.getElementById('f-model');
+  const labelOff    = document.getElementById('model-label-off');
+  const labelOn     = document.getElementById('model-label-on');
+
+  fModel.addEventListener('change', () => {
+    labelOff.classList.toggle('d-none', fModel.checked);
+    labelOn.classList.toggle('d-none', !fModel.checked);
+  });
+
+  /* ---- gauge update ---- */
+  function updateGauge(score) {
+    const deg   = Math.round(score * 3.6); // 0-360
+    const color = score >= 70 ? '#ef4444' : score >= 30 ? '#f59e0b' : '#22c55e';
+    const bg    = score >= 70 ? '#2d0b0b' : score >= 30 ? '#2d1f00' : '#0a2d1a';
+    gaugeCircle.style.background =
+      `conic-gradient(${color} 0deg ${deg}deg, #1e293b ${deg}deg 360deg)`;
+    gaugePct.textContent = score + '%';
+    gaugePct.style.color = color;
+    gaugeLevelTxt.textContent = score >= 70 ? '🔴 Risiko Tinggi'
+                              : score >= 30 ? '🟡 Risiko Sedang'
+                              :               '🟢 Risiko Rendah';
+  }
+
+  /* ---- decision badge update ---- */
+  const DECISIONS = {
+    allow:         { label:'IZINKAN',      icon:'bi-check-circle-fill', color:'#22c55e', bg:'#052e16' },
+    challenge_mfa: { label:'TUNTUT MFA',   icon:'bi-shield-lock-fill',  color:'#f59e0b', bg:'#2d1f00' },
+    block:         { label:'BLOKIR',       icon:'bi-slash-circle-fill', color:'#ef4444', bg:'#2d0b0b' },
+  };
+  function updateDecision(d, detail) {
+    const cfg = DECISIONS[d] || { label: d, icon:'bi-question', color:'#94a3b8', bg:'#1e293b' };
+    decisionBadge.style.background = cfg.bg;
+    decisionBadge.style.color      = cfg.color;
+    decisionIcon.className = 'bi ' + cfg.icon;
+    decisionText.textContent = cfg.label;
+    decisionDetail.textContent = detail || '';
+  }
+
+  /* ---- feature table ---- */
+  function renderFeatures(features) {
+    if (!features || !features.length) {
+      featureTbody.innerHTML = '<tr><td colspan="3" class="text-secondary text-center">Tidak tersedia</td></tr>';
+      return;
+    }
+    featureTbody.innerHTML = features.map(f => {
+      const pct    = parseFloat(f.contribution || 0).toFixed(1);
+      const barW   = Math.min(100, Math.abs(pct * 2));
+      const barCol = pct > 0 ? '#ef4444' : '#22c55e';
+      return `
+        <tr>
+          <td class="text-white">${f.feature}</td>
+          <td class="text-end">
+            <div class="d-flex align-items-center justify-content-end gap-2">
+              <div class="progress flex-grow-1" style="height:4px;max-width:60px;background:#1e293b;">
+                <div class="progress-bar" style="width:${barW}%;background:${barCol};"></div>
+              </div>
+              <span style="color:${barCol};min-width:38px;" class="fw-semibold">${pct}%</span>
+            </div>
+          </td>
+          <td class="text-secondary">${f.description || '—'}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  /* ---- setLoading ---- */
+  function setLoading(on) {
+    btnSubmit.disabled = on;
+    btnNormal.classList.toggle('d-none', on);
+    btnLoading.classList.toggle('d-none', !on);
+  }
+
+  /* ---- show/hide panels ---- */
+  function showResult() {
+    resultEmpty.classList.add('d-none');
+    resultError.classList.add('d-none');
+    resultContent.classList.remove('d-none');
+  }
+  function showError(msg) {
+    resultEmpty.classList.add('d-none');
+    resultContent.classList.add('d-none');
+    resultError.classList.remove('d-none');
+    errorMsg.textContent = msg;
+  }
+
+  /* ---- form submit ---- */
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    setLoading(true);
+
+    const payload = {
+      ip_address:          document.getElementById('f-ip').value.trim(),
+      asn:                 document.getElementById('f-asn').value.trim(),
+      country:             document.getElementById('f-country').value,
+      device_type:         document.getElementById('f-device').value,
+      os:                  document.getElementById('f-os').value,
+      browser:             document.getElementById('f-browser').value,
+      rtt_ms:              parseInt(document.getElementById('f-rtt').value) || 0,
+      is_attack_ip:        document.getElementById('f-attack').checked,
+      use_advanced_model:  document.getElementById('f-model').checked,
+    };
+
+    try {
+      const resp = await fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+      const data = await resp.json();
+
+      showResult();
+      updateGauge(Math.round(data.risk_score || 0));
+      updateDecision(data.decision, data.decision_reason || '');
+      renderFeatures(data.feature_contributions || []);
+      infoModel.textContent   = data.model_used || '—';
+      infoLatency.textContent = data.latency_ms != null ? data.latency_ms + ' ms' : '—';
+
+      modelBadge.textContent = data.model_used || '';
+      modelBadge.classList.remove('d-none');
+
+    } catch (err) {
+      showError('Gagal menghubungi server: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  });
+})();
+</script>
+{% endblock %}

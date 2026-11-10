@@ -1,0 +1,717 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — SOC Overview{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}SOC Overview — Real-Time Security Monitoring{% endblock %}
+
+{% block extra_styles %}
+/* ── KPI stat-cards ── */
+.stat-card {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05);
+  transition: transform 0.18s, box-shadow 0.18s;
+  overflow: hidden;
+  position: relative;
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+}
+.stat-card .card-body {
+  padding: 20px 20px 16px;
+}
+.stat-card .stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+.stat-card .stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f172a;
+}
+.stat-card .stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-top: 4px;
+}
+.stat-card .stat-change {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.stat-card .card-accent {
+  position: absolute;
+  top: 0; right: 0;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  opacity: 0.08;
+  transform: translate(20px, -20px);
+}
+
+/* ── Section cards ── */
+.section-card {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05);
+  height: 100%;
+}
+.section-card .card-header {
+  background: transparent;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 16px 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-card .card-header .card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-card .card-body {
+  padding: 16px 20px;
+}
+
+/* ── Live badge ── */
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ef4444;
+  letter-spacing: 0.5px;
+}
+.live-dot {
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── Doughnut center label ── */
+.chart-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.doughnut-center {
+  position: absolute;
+  text-align: center;
+  pointer-events: none;
+}
+.doughnut-center .dc-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+}
+.doughnut-center .dc-label {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Chart legend ── */
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-label {
+  font-size: 0.8rem;
+  color: #475569;
+  flex: 1;
+}
+.legend-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.legend-pct {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Country table ── */
+.country-table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 8px 10px;
+}
+.country-table td {
+  font-size: 0.84rem;
+  color: #334155;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f8fafc;
+  vertical-align: middle;
+}
+.country-table tr:last-child td { border-bottom: 0; }
+.country-bar {
+  height: 5px;
+  border-radius: 10px;
+  background: #ef4444;
+  opacity: 0.75;
+}
+
+/* ── Incidents table ── */
+.incidents-table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  border: 0;
+  padding: 8px 12px;
+  background: #f8fafc;
+}
+.incidents-table td {
+  font-size: 0.83rem;
+  color: #334155;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.incidents-table tr:last-child td { border-bottom: 0; }
+.incidents-table tr:hover td { background: #f8fafc; }
+
+/* Risk badges */
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.risk-critical { background: #fef2f2; color: #ef4444; }
+.risk-high     { background: #fff7ed; color: #f97316; }
+.risk-medium   { background: #fefce8; color: #ca8a04; }
+.risk-low      { background: #f0fdf4; color: #10b981; }
+{% endblock %}
+
+{% block content %}
+<!-- ════════════════════════════════════════
+     Page header with LIVE indicator
+════════════════════════════════════════ -->
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h5 class="fw-bold text-dark mb-1">SOC Overview</h5>
+    <p class="text-muted mb-0" style="font-size:0.82rem;">
+      <i class="bi bi-clock me-1"></i>
+      Terakhir diperbarui: <span id="last-update">—</span>
+    </p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <div class="live-indicator">
+      <div class="live-dot"></div>
+      LIVE
+    </div>
+    <a href="/incidents" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1">
+      <i class="bi bi-shield-exclamation"></i>
+      Lihat Insiden
+    </a>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     ROW 1 — KPI Cards
+════════════════════════════════════════ -->
+<div class="row g-3 mb-4">
+
+  <!-- Total Login -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="stat-card card bg-white">
+      <div class="card-body d-flex flex-column gap-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="stat-icon" style="background:#eff6ff;">
+            <i class="bi bi-box-arrow-in-right" style="color:#1e3a8a;"></i>
+          </div>
+        </div>
+        <div class="stat-value" id="kpi-total-logins">{{ total_logins | default(0) }}</div>
+        <div class="stat-label">Total Login</div>
+        <div class="stat-change"><i class="bi bi-graph-up-arrow text-success"></i> Hari ini</div>
+      </div>
+      <div class="card-accent" style="background:#1e3a8a;"></div>
+    </div>
+  </div>
+
+  <!-- Terdeteksi ATO -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="stat-card card bg-white">
+      <div class="card-body d-flex flex-column gap-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="stat-icon" style="background:#fef2f2;">
+            <i class="bi bi-shield-x" style="color:#ef4444;"></i>
+          </div>
+        </div>
+        <div class="stat-value text-danger" id="kpi-total-ato">{{ total_ato | default(0) }}</div>
+        <div class="stat-label">Terdeteksi ATO</div>
+        <div class="stat-change"><i class="bi bi-exclamation-circle text-danger"></i> Pembajakan akun</div>
+      </div>
+      <div class="card-accent" style="background:#ef4444;"></div>
+    </div>
+  </div>
+
+  <!-- Login Diblokir -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="stat-card card bg-white">
+      <div class="card-body d-flex flex-column gap-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="stat-icon" style="background:#fef2f2;">
+            <i class="bi bi-ban" style="color:#ef4444;"></i>
+          </div>
+        </div>
+        <div class="stat-value text-danger" id="kpi-total-blocked">{{ total_blocked | default(0) }}</div>
+        <div class="stat-label">Login Diblokir</div>
+        <div class="stat-change"><i class="bi bi-lock text-danger"></i> Akses ditolak</div>
+      </div>
+      <div class="card-accent" style="background:#ef4444;"></div>
+    </div>
+  </div>
+
+  <!-- Pemicu MFA -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="stat-card card bg-white">
+      <div class="card-body d-flex flex-column gap-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="stat-icon" style="background:#fffbeb;">
+            <i class="bi bi-shield-check" style="color:#f59e0b;"></i>
+          </div>
+        </div>
+        <div class="stat-value" style="color:#f59e0b;" id="kpi-total-mfa">{{ total_mfa | default(0) }}</div>
+        <div class="stat-label">Pemicu MFA</div>
+        <div class="stat-change"><i class="bi bi-phone text-warning"></i> Verifikasi 2FA</div>
+      </div>
+      <div class="card-accent" style="background:#f59e0b;"></div>
+    </div>
+  </div>
+
+  <!-- Diizinkan -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="stat-card card bg-white">
+      <div class="card-body d-flex flex-column gap-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="stat-icon" style="background:#f0fdf4;">
+            <i class="bi bi-check-circle" style="color:#10b981;"></i>
+          </div>
+        </div>
+        <div class="stat-value text-success" id="kpi-total-allow">{{ total_allow | default(0) }}</div>
+        <div class="stat-label">Diizinkan</div>
+        <div class="stat-change"><i class="bi bi-unlock text-success"></i> Akses aman</div>
+      </div>
+      <div class="card-accent" style="background:#10b981;"></div>
+    </div>
+  </div>
+
+  <!-- Insiden Terbuka -->
+  <div class="col-sm-6 col-xl-2">
+    <div class="stat-card card bg-white">
+      <div class="card-body d-flex flex-column gap-2">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="stat-icon" style="background:#fff7ed;">
+            <i class="bi bi-exclamation-triangle" style="color:#f97316;"></i>
+          </div>
+        </div>
+        <div class="stat-value" style="color:#f97316;" id="kpi-open-incidents">{{ open_incidents | default(0) }}</div>
+        <div class="stat-label">Insiden Terbuka</div>
+        <div class="stat-change"><i class="bi bi-clock-history text-warning"></i> Perlu tindakan</div>
+      </div>
+      <div class="card-accent" style="background:#f97316;"></div>
+    </div>
+  </div>
+
+</div><!-- /row KPI -->
+
+<!-- ════════════════════════════════════════
+     ROW 2 — Doughnut chart + Country table
+════════════════════════════════════════ -->
+<div class="row g-3 mb-4">
+
+  <!-- Left: Doughnut Chart -->
+  <div class="col-md-7">
+    <div class="section-card card">
+      <div class="card-header">
+        <h6 class="card-title">
+          <i class="bi bi-pie-chart-fill text-primary"></i>
+          Distribusi Keputusan AI
+        </h6>
+        <span class="badge bg-light text-secondary" style="font-size:0.68rem;">Real-time</span>
+      </div>
+      <div class="card-body">
+        <div class="row align-items-center">
+          <!-- Chart -->
+          <div class="col-7">
+            <div class="chart-wrapper">
+              <canvas id="decisionChart" width="220" height="220"></canvas>
+              <div class="doughnut-center">
+                <div class="dc-value" id="chart-total">—</div>
+                <div class="dc-label">Total</div>
+              </div>
+            </div>
+          </div>
+          <!-- Legend -->
+          <div class="col-5">
+            <div class="chart-legend">
+              <div class="legend-item">
+                <div class="legend-dot" style="background:#10b981;"></div>
+                <span class="legend-label">Allow</span>
+                <span class="legend-value" id="leg-allow">{{ decision_data[0] if decision_data else 0 }}</span>
+                <span class="legend-pct" id="leg-allow-pct">—</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-dot" style="background:#f59e0b;"></div>
+                <span class="legend-label">MFA</span>
+                <span class="legend-value" id="leg-mfa">{{ decision_data[1] if decision_data else 0 }}</span>
+                <span class="legend-pct" id="leg-mfa-pct">—</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-dot" style="background:#ef4444;"></div>
+                <span class="legend-label">Block</span>
+                <span class="legend-value" id="leg-block">{{ decision_data[2] if decision_data else 0 }}</span>
+                <span class="legend-pct" id="leg-block-pct">—</span>
+              </div>
+            </div>
+
+            <!-- Risk level indicator -->
+            <div class="mt-4">
+              <div class="d-flex justify-content-between mb-1">
+                <span style="font-size:0.72rem;color:#64748b;font-weight:600;">Tingkat Risiko Global</span>
+                <span id="risk-pct" style="font-size:0.72rem;color:#ef4444;font-weight:700;">—</span>
+              </div>
+              <div class="progress" style="height:6px;border-radius:10px;">
+                <div class="progress-bar bg-success" id="risk-bar-allow" role="progressbar" style="width:0%;"></div>
+                <div class="progress-bar bg-warning" id="risk-bar-mfa" role="progressbar" style="width:0%;"></div>
+                <div class="progress-bar bg-danger" id="risk-bar-block" role="progressbar" style="width:0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Top Country Attack Table -->
+  <div class="col-md-5">
+    <div class="section-card card">
+      <div class="card-header">
+        <h6 class="card-title">
+          <i class="bi bi-globe-asia-australia text-danger"></i>
+          Top Negara Serangan
+        </h6>
+        <span class="badge bg-danger text-white" style="font-size:0.68rem;">Threat Intel</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table country-table mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Negara</th>
+              <th>Serangan</th>
+              <th>Intensitas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set country_flags = {
+              'China': '🇨🇳', 'Russia': '🇷🇺', 'United States': '🇺🇸',
+              'Brazil': '🇧🇷', 'India': '🇮🇳', 'Germany': '🇩🇪',
+              'France': '🇫🇷', 'Iran': '🇮🇷', 'North Korea': '🇰🇵',
+              'Ukraine': '🇺🇦', 'Indonesia': '🇮🇩', 'Vietnam': '🇻🇳',
+              'Nigeria': '🇳🇬', 'Unknown': '🌐', 'Turkey': '🇹🇷'
+            } %}
+            {% if top_countries %}
+              {% set max_count = top_countries[0][1] if top_countries else 1 %}
+              {% for country, count in top_countries[:8] %}
+              <tr>
+                <td class="text-muted" style="font-size:0.75rem;">{{ loop.index }}</td>
+                <td>
+                  <span class="me-1">{{ country_flags.get(country, '🌐') }}</span>
+                  <span>{{ country }}</span>
+                </td>
+                <td><strong>{{ count }}</strong></td>
+                <td style="width:70px;">
+                  <div class="country-bar" style="width:{{ [(count / max_count * 100)|int, 10]|max }}%;"></div>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-4" style="font-size:0.82rem;">
+                  <i class="bi bi-shield-check me-1"></i> Belum ada data serangan
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /row 2 -->
+
+<!-- ════════════════════════════════════════
+     ROW 3 — Top Ancaman Aktif
+════════════════════════════════════════ -->
+<div class="row g-3">
+  <div class="col-12">
+    <div class="section-card card">
+      <div class="card-header">
+        <h6 class="card-title">
+          <i class="bi bi-fire text-danger"></i>
+          Top Ancaman Aktif
+        </h6>
+        <a href="/incidents" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" style="font-size:0.78rem;">
+          <i class="bi bi-arrow-right-circle"></i>
+          Lihat Semua Insiden
+        </a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table incidents-table mb-0">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Waktu</th>
+                <th>Pengguna</th>
+                <th>IP Sumber</th>
+                <th>Negara</th>
+                <th>Jenis Ancaman</th>
+                <th>Risiko</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if recent_incidents %}
+                {% for inc in recent_incidents %}
+                <tr>
+                  <td>
+                    <span class="text-muted" style="font-size:0.75rem;">#{{ inc.id }}</span>
+                  </td>
+                  <td>
+                    <span style="font-size:0.78rem;">{{ inc.timestamp.strftime('%d/%m %H:%M') if inc.timestamp else '—' }}</span>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <div style="width:26px;height:26px;background:#eff6ff;border-radius:50%;
+                                  display:flex;align-items:center;justify-content:center;
+                                  font-size:0.7rem;font-weight:700;color:#1e3a8a;">
+                        {{ inc.username[0].upper() if inc.username else '?' }}
+                      </div>
+                      <span>{{ inc.username | default('—') }}</span>
+                    </div>
+                  </td>
+                  <td><code style="font-size:0.78rem;">{{ inc.ip_address | default('—') }}</code></td>
+                  <td>{{ inc.country | default('—') }}</td>
+                  <td>
+                    <span class="badge bg-light text-dark border" style="font-size:0.72rem;">
+                      {{ inc.threat_type | default('ATO') }}
+                    </span>
+                  </td>
+                  <td>
+                    {% set risk = inc.risk_score | default(0) %}
+                    {% if risk >= 0.8 %}
+                    <span class="risk-badge risk-critical"><i class="bi bi-exclamation-circle-fill"></i> Kritis</span>
+                    {% elif risk >= 0.6 %}
+                    <span class="risk-badge risk-high"><i class="bi bi-exclamation-triangle-fill"></i> Tinggi</span>
+                    {% elif risk >= 0.4 %}
+                    <span class="risk-badge risk-medium"><i class="bi bi-dash-circle"></i> Sedang</span>
+                    {% else %}
+                    <span class="risk-badge risk-low"><i class="bi bi-check-circle"></i> Rendah</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if inc.status == 'open' %}
+                    <span class="badge bg-danger" style="font-size:0.68rem;">Terbuka</span>
+                    {% elif inc.status == 'investigating' %}
+                    <span class="badge bg-warning text-dark" style="font-size:0.68rem;">Investigasi</span>
+                    {% else %}
+                    <span class="badge bg-success" style="font-size:0.68rem;">Selesai</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <a href="/incidents/{{ inc.id }}" class="btn btn-xs btn-outline-primary"
+                       style="font-size:0.72rem;padding:3px 8px;border-radius:6px;">
+                      <i class="bi bi-eye"></i> Detail
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="9" class="text-center py-5">
+                    <div class="text-muted">
+                      <i class="bi bi-shield-check" style="font-size:2rem;display:block;margin-bottom:8px;color:#10b981;"></i>
+                      <span style="font-size:0.85rem;">Tidak ada ancaman aktif. Sistem aman.</span>
+                    </div>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /row 3 -->
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ════════════════════════════════════════
+//  Decision Distribution — Doughnut Chart
+// ════════════════════════════════════════
+(function () {
+  // Data injected by Flask: [allow, mfa, block]
+  const rawData = {{ decision_data | tojson if decision_data else '[0, 0, 0]' }};
+  const labels  = ['Allow', 'MFA', 'Block'];
+  const colors  = ['#10b981', '#f59e0b', '#ef4444'];
+  const total   = rawData.reduce((a, b) => a + b, 0);
+
+  // Update center label
+  document.getElementById('chart-total').textContent = total.toLocaleString('id-ID');
+
+  // Update legend percentages and progress bar
+  const ids = ['allow', 'mfa', 'block'];
+  ids.forEach((id, i) => {
+    const pct = total > 0 ? Math.round(rawData[i] / total * 100) : 0;
+    document.getElementById(`leg-${id}-pct`).textContent = `${pct}%`;
+    const bar = document.getElementById(`risk-bar-${id}`);
+    if (bar) bar.style.width = `${pct}%`;
+  });
+
+  // Risk level text
+  const blockPct = total > 0 ? Math.round(rawData[2] / total * 100) : 0;
+  document.getElementById('risk-pct').textContent = `${blockPct}% blokir`;
+
+  // Render chart
+  const ctx = document.getElementById('decisionChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: rawData,
+        backgroundColor: colors,
+        borderColor: '#fff',
+        borderWidth: 3,
+        hoverBorderWidth: 2,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const val = ctx.raw;
+              const pct = total > 0 ? Math.round(val / total * 100) : 0;
+              return ` ${ctx.label}: ${val.toLocaleString('id-ID')} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+})();
+
+// ════════════════════════════════════════
+//  LIVE Polling — /api/monitor/latest
+//  Interval: 15 seconds
+// ════════════════════════════════════════
+function updateTimestamp () {
+  const now = new Date();
+  const formatted = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('last-update').textContent = formatted;
+}
+
+function fetchLatest () {
+  fetch('/api/monitor/latest')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      updateTimestamp();
+
+      // Update KPI counters if the API returns fresh aggregated totals
+      const map = {
+        'kpi-total-logins':   data.total_logins,
+        'kpi-total-ato':      data.total_ato,
+        'kpi-total-blocked':  data.total_blocked,
+        'kpi-total-mfa':      data.total_mfa,
+        'kpi-total-allow':    data.total_allow,
+        'kpi-open-incidents': data.open_incidents,
+      };
+      Object.entries(map).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && val !== undefined && val !== null) {
+          // Brief flash animation on update
+          el.style.transition = 'opacity 0.2s';
+          el.style.opacity = '0.3';
+          setTimeout(() => {
+            el.textContent = Number(val).toLocaleString('id-ID');
+            el.style.opacity = '1';
+          }, 200);
+        }
+      });
+    })
+    .catch(() => {
+      // Silently fail — network errors are non-critical on dashboard
+    });
+}
+
+// Initial call and interval
+updateTimestamp();
+fetchLatest();
+setInterval(fetchLatest, 15000);
+</script>
+{% endblock %}

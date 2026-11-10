@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="/incidents" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <i class="bi bi-shield-exclamation fs-3 text-warning"></i>
+    <div>
+      <h2 class="mb-0 fw-bold text-white">Detail Insiden <span class="text-warning">#{{ inc.id }}</span></h2>
+      <small class="text-secondary">{{ inc.title }}</small>
+    </div>
+    <!-- Severity Badge in header -->
+    {% if inc.severity == 'critical' %}
+      <span class="badge ms-auto" style="background:#7f1d1d;color:#fca5a5;font-size:.85rem;">
+        <i class="bi bi-radioactive me-1"></i>CRITICAL
+      </span>
+    {% elif inc.severity == 'high' %}
+      <span class="badge ms-auto" style="background:#991b1b;color:#fca5a5;font-size:.85rem;">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>HIGH
+      </span>
+    {% elif inc.severity == 'medium' %}
+      <span class="badge ms-auto" style="background:#78350f;color:#fcd34d;font-size:.85rem;">
+        <i class="bi bi-exclamation-circle me-1"></i>MEDIUM
+      </span>
+    {% else %}
+      <span class="badge ms-auto" style="background:#14532d;color:#86efac;font-size:.85rem;">
+        <i class="bi bi-info-circle me-1"></i>LOW
+      </span>
+    {% endif %}
+  </div>
+
+  <!-- Alert box for action feedback -->
+  <div id="action-alert" class="alert d-none mb-3" role="alert"></div>
+
+  <div class="row g-4">
+    <!-- ========== LEFT COLUMN ========== -->
+    <div class="col-lg-7">
+
+      <!-- Card: Incident Info -->
+      <div class="card border-0 mb-4" style="background:#112240;">
+        <div class="card-header border-bottom border-secondary d-flex align-items-center gap-2 py-3">
+          <i class="bi bi-file-earmark-text text-warning"></i>
+          <span class="fw-semibold text-white">Informasi Insiden</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 mb-3">
+
+            <!-- Status -->
+            <div class="col-sm-6">
+              <div class="text-secondary small mb-1">Status</div>
+              <div class="d-flex align-items-center gap-2">
+                <select id="status-select"
+                        class="form-select form-select-sm bg-dark text-white border-secondary"
+                        style="max-width:200px;">
+                  {% for s in ['open','investigating','resolved','false_positive'] %}
+                  <option value="{{ s }}" {% if inc.status == s %}selected{% endif %}>
+                    {{ s | replace('_', ' ') | title }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <button onclick="changeStatus()" class="btn btn-sm btn-outline-warning">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Assignee -->
+            <div class="col-sm-6">
+              <div class="text-secondary small mb-1">Assignee</div>
+              <div class="text-white fw-semibold">{{ inc.assignee or '—' }}</div>
+            </div>
+
+            <!-- Created At -->
+            <div class="col-sm-6">
+              <div class="text-secondary small mb-1"><i class="bi bi-calendar-event me-1"></i>Dibuat</div>
+              <div class="text-white small font-monospace">{{ inc.created_at }}</div>
+            </div>
+
+            <!-- Updated At -->
+            <div class="col-sm-6">
+              <div class="text-secondary small mb-1"><i class="bi bi-clock-history me-1"></i>Diperbarui</div>
+              <div class="text-white small font-monospace">{{ inc.updated_at or '—' }}</div>
+            </div>
+
+          </div>
+
+          <!-- Description -->
+          <div class="mb-3">
+            <div class="text-secondary small mb-1"><i class="bi bi-text-paragraph me-1"></i>Deskripsi</div>
+            <div class="p-2 rounded text-white small" style="background:#0d1b2a;line-height:1.6;">
+              {{ inc.description or 'Tidak ada deskripsi.' }}
+            </div>
+          </div>
+
+          <!-- Behavioral Note -->
+          {% if inc.behavioral_note %}
+          <div>
+            <div class="text-secondary small mb-1"><i class="bi bi-lightbulb me-1"></i>Behavioral Note</div>
+            <div class="p-2 rounded small border border-warning border-opacity-25"
+                 style="background:#2d1f00;color:#fcd34d;line-height:1.6;">
+              {{ inc.behavioral_note }}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Card: Action History (Timeline) -->
+      <div class="card border-0 mb-4" style="background:#112240;">
+        <div class="card-header border-bottom border-secondary d-flex align-items-center gap-2 py-3">
+          <i class="bi bi-clock-history text-warning"></i>
+          <span class="fw-semibold text-white">Riwayat Tindakan</span>
+        </div>
+        <div class="card-body">
+          {% if actions %}
+          <div class="timeline">
+            {% for action in actions %}
+            {% set icon_map = {
+              'status_change':   ('bi-arrow-repeat',         'text-info'),
+              'note':            ('bi-chat-left-text',        'text-secondary'),
+              'block':           ('bi-slash-circle',          'text-danger'),
+              'reset_password':  ('bi-key',                   'text-warning'),
+              'revoke_session':  ('bi-x-circle',              'text-danger'),
+              'lock_account':    ('bi-lock',                  'text-orange'),
+              'unlock_account':  ('bi-unlock',                'text-success'),
+              'assign':          ('bi-person-check',          'text-primary'),
+              'escalate':        ('bi-arrow-up-circle',       'text-warning'),
+            } %}
+            {% set ai = icon_map.get(action.action_type, ('bi-circle', 'text-secondary')) %}
+            <div class="d-flex gap-3 mb-3 position-relative">
+              <!-- Icon -->
+              <div class="d-flex flex-column align-items-center" style="min-width:32px;">
+                <div class="rounded-circle d-flex align-items-center justify-content-center"
+                     style="width:32px;height:32px;background:#0d1b2a;flex-shrink:0;">
+                  <i class="bi {{ ai[0] }} {{ ai[1] }}"></i>
+                </div>
+                {% if not loop.last %}
+                <div style="width:2px;flex-grow:1;background:#1e3a5f;margin-top:4px;min-height:20px;"></div>
+                {% endif %}
+              </div>
+              <!-- Content -->
+              <div class="flex-grow-1 pb-2">
+                <div class="d-flex align-items-baseline gap-2 flex-wrap">
+                  <span class="text-white small fw-semibold">{{ action.actor or 'System' }}</span>
+                  <span class="text-secondary" style="font-size:.75rem;">{{ action.action_type | replace('_',' ') | title }}</span>
+                  <span class="text-secondary ms-auto font-monospace" style="font-size:.7rem;">{{ action.created_at }}</span>
+                </div>
+                {% if action.note %}
+                <div class="mt-1 p-2 rounded text-secondary small" style="background:#0d1b2a;">
+                  {{ action.note }}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+            <div class="text-center text-secondary py-3">
+              <i class="bi bi-clock d-block mb-2 fs-3 opacity-25"></i>
+              Belum ada riwayat tindakan.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Card: Add Note -->
+      <div class="card border-0" style="background:#112240;">
+        <div class="card-header border-bottom border-secondary d-flex align-items-center gap-2 py-3">
+          <i class="bi bi-chat-left-dots text-warning"></i>
+          <span class="fw-semibold text-white">Tambah Catatan</span>
+        </div>
+        <div class="card-body">
+          <form id="note-form">
+            <div class="mb-3">
+              <textarea id="note-textarea" class="form-control bg-dark text-white border-secondary"
+                        rows="3" placeholder="Tulis catatan investigasi…" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-send me-1"></i>Kirim Catatan
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========== RIGHT COLUMN ========== -->
+    <div class="col-lg-5">
+
+      <!-- Card: Related Login Data -->
+      <div class="card border-0 mb-4" style="background:#112240;">
+        <div class="card-header border-bottom border-secondary d-flex align-items-center gap-2 py-3">
+          <i class="bi bi-database text-warning"></i>
+          <span class="fw-semibold text-white">Data Login Terkait</span>
+        </div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            {% set fields = [
+              ('IP Address',    'ip_address',    'bi-hdd-network',       'text-info font-monospace'),
+              ('Negara',        'country',       'bi-globe2',            ''),
+              ('Device',        'device_type',   'bi-device-ssd',        ''),
+              ('OS',            'os',            'bi-windows',           ''),
+              ('Browser',       'browser',       'bi-browser-chrome',    ''),
+              ('RTT',           'rtt_ms',        'bi-speedometer2',      ''),
+              ('Risk Score',    'risk_score',    'bi-graph-up',          'text-warning fw-bold'),
+              ('Is Attack IP',  'is_attack_ip',  'bi-shield-x',          ''),
+            ] %}
+            {% for label, key, icon, extra_cls in fields %}
+            <li class="list-group-item border-secondary d-flex align-items-center justify-content-between px-3 py-2"
+                style="background:transparent;">
+              <span class="text-secondary small">
+                <i class="bi {{ icon }} me-2"></i>{{ label }}
+              </span>
+              <span class="text-white small {{ extra_cls }}">
+                {% if key == 'is_attack_ip' %}
+                  {% if inc[key] %}
+                    <span class="badge bg-danger bg-opacity-25 text-danger">
+                      <i class="bi bi-exclamation-triangle-fill me-1"></i>Ya
+                    </span>
+                  {% else %}
+                    <span class="badge bg-success bg-opacity-25 text-success">Tidak</span>
+                  {% endif %}
+                {% elif key == 'risk_score' %}
+                  {{ inc[key] }}%
+                {% else %}
+                  {{ inc[key] or '—' }}
+                {% endif %}
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Card: Quick Actions -->
+      <div class="card border-0" style="background:#112240;">
+        <div class="card-header border-bottom border-secondary d-flex align-items-center gap-2 py-3">
+          <i class="bi bi-lightning-charge text-warning"></i>
+          <span class="fw-semibold text-white">Quick Actions</span>
+        </div>
+        <div class="card-body d-flex flex-column gap-2">
+
+          <!-- Cabut Sesi -->
+          <button onclick="sendAction('revoke_session')"
+                  class="btn btn-outline-danger text-start d-flex align-items-center gap-2">
+            <i class="bi bi-x-circle fs-5"></i>
+            <div>
+              <div class="fw-semibold">Cabut Sesi Aktif</div>
+              <div class="small opacity-75">Invalidate semua sesi login aktif</div>
+            </div>
+          </button>
+
+          <!-- Reset Password -->
+          <button onclick="sendAction('reset_password')"
+                  class="btn btn-outline-warning text-start d-flex align-items-center gap-2">
+            <i class="bi bi-key fs-5"></i>
+            <div>
+              <div class="fw-semibold">Reset Password</div>
+              <div class="small opacity-75">Kirim link reset ke email terdaftar</div>
+            </div>
+          </button>
+
+          <!-- Kunci Akun -->
+          <button onclick="sendAction('lock_account')"
+                  class="btn btn-outline-warning text-start d-flex align-items-center gap-2"
+                  style="border-color:#f97316;color:#f97316;">
+            <i class="bi bi-lock fs-5"></i>
+            <div>
+              <div class="fw-semibold">Kunci Akun</div>
+              <div class="small opacity-75">Blokir semua akses akun</div>
+            </div>
+          </button>
+
+          <!-- Buka Kunci -->
+          <button onclick="sendAction('unlock_account')"
+                  class="btn btn-outline-success text-start d-flex align-items-center gap-2">
+            <i class="bi bi-unlock fs-5"></i>
+            <div>
+              <div class="fw-semibold">Buka Kunci Akun</div>
+              <div class="small opacity-75">Pulihkan akses akun yang terkunci</div>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== STYLES ===== -->
+<style>
+  .btn-outline-warning:hover { background: rgba(245,158,11,.1); }
+  .form-select:focus, .form-control:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 .2rem rgba(245,158,11,.2);
+  }
+</style>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+  const INC_ID = {{ inc.id | tojson }};
+
+  /* ---- show alert ---- */
+  function showAlert(msg, type) {
+    const el = document.getElementById('action-alert');
+    el.className = `alert alert-${type}`;
+    el.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}-fill me-2"></i>${msg}`;
+    el.classList.remove('d-none');
+    setTimeout(() => el.classList.add('d-none'), 5000);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ---- quick actions ---- */
+  async function sendAction(actionType) {
+    const confirmMsg = {
+      revoke_session:  'Cabut semua sesi aktif akun ini?',
+      reset_password:  'Kirim link reset password ke akun ini?',
+      lock_account:    'Kunci akun ini sekarang?',
+      unlock_account:  'Buka kunci akun ini?',
+    };
+    if (!confirm(confirmMsg[actionType] || 'Lanjutkan?')) return;
+
+    try {
+      const r = await fetch(`/incidents/${INC_ID}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_type: actionType }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showAlert(data.message || 'Tindakan berhasil dilakukan.', 'success');
+      } else {
+        showAlert(data.error || 'Tindakan gagal.', 'danger');
+      }
+    } catch (err) {
+      showAlert('Gagal menghubungi server: ' + err.message, 'danger');
+    }
+  }
+
+  /* ---- change status ---- */
+  async function changeStatus() {
+    const status = document.getElementById('status-select').value;
+    try {
+      const r = await fetch(`/incidents/${INC_ID}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showAlert(`Status berhasil diubah ke <strong>${status.replace('_', ' ')}</strong>.`, 'success');
+      } else {
+        showAlert(data.error || 'Gagal mengubah status.', 'danger');
+      }
+    } catch (err) {
+      showAlert('Gagal menghubungi server: ' + err.message, 'danger');
+    }
+  }
+
+  /* ---- add note ---- */
+  document.getElementById('note-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const note = document.getElementById('note-textarea').value.trim();
+    if (!note) return;
+
+    try {
+      const r = await fetch(`/incidents/${INC_ID}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action_type: 'note', note }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        showAlert('Catatan berhasil ditambahkan.', 'success');
+        document.getElementById('note-textarea').value = '';
+        // Optional: reload page to show updated timeline
+        setTimeout(() => location.reload(), 1200);
+      } else {
+        showAlert(data.error || 'Gagal menyimpan catatan.', 'danger');
+      }
+    } catch (err) {
+      showAlert('Gagal menghubungi server: ' + err.message, 'danger');
+    }
+  });
+</script>
+{% endblock %}

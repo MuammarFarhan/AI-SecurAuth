@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Page Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <i class="bi bi-shield-exclamation fs-3 text-warning"></i>
+      <div>
+        <h2 class="mb-0 fw-bold text-white">Threat &amp; Incident Investigation</h2>
+        <small class="text-secondary">Kelola, investigasi, dan tutup insiden keamanan ATO</small>
+      </div>
+    </div>
+    <a href="/incidents/new" class="btn btn-warning fw-semibold">
+      <i class="bi bi-plus-circle me-1"></i>Buat Insiden
+    </a>
+  </div>
+
+  <!-- Status Filter Tabs -->
+  <div class="card border-0 mb-3" style="background:#112240;">
+    <div class="card-body py-2 px-3">
+      <ul class="nav nav-pills gap-1 flex-wrap">
+        {% set statuses = [
+          ('',               'Semua',          'bi-grid-3x3-gap',    'secondary'),
+          ('open',           'Open',           'bi-folder2-open',    'danger'),
+          ('investigating',  'Investigating',  'bi-search',          'warning'),
+          ('resolved',       'Resolved',       'bi-check2-circle',   'success'),
+          ('false_positive', 'False Positive', 'bi-patch-question',  'info'),
+        ] %}
+        {% for val, label, icon, color in statuses %}
+        <li class="nav-item">
+          <a class="nav-link py-1 px-3 {% if status_filter == val or (val == '' and not status_filter) %}active bg-primary{% else %}text-secondary{% endif %}"
+             href="?status={{ val }}">
+            <i class="bi {{ icon }} me-1"></i>{{ label }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <!-- Incidents Table Card -->
+  <div class="card border-0" style="background:#0d1b2a;">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+          <thead style="background:#112240;position:sticky;top:0;z-index:1;">
+            <tr>
+              <th class="text-secondary fw-normal small px-3">ID</th>
+              <th class="text-secondary fw-normal small">Judul Insiden</th>
+              <th class="text-secondary fw-normal small">Severity</th>
+              <th class="text-secondary fw-normal small">Status</th>
+              <th class="text-secondary fw-normal small">IP Sumber</th>
+              <th class="text-secondary fw-normal small">Negara</th>
+              <th class="text-secondary fw-normal small">Tanggal</th>
+              <th class="text-secondary fw-normal small">Assignee</th>
+              <th class="text-secondary fw-normal small text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if incidents %}
+              {% for inc in incidents %}
+              <tr>
+                <!-- ID -->
+                <td class="px-3 font-monospace text-secondary small">#{{ inc.id }}</td>
+
+                <!-- Title -->
+                <td>
+                  <div class="text-white fw-semibold small">{{ inc.title }}</div>
+                  {% if inc.description %}
+                  <div class="text-secondary" style="font-size:.75rem;max-width:260px;
+                       overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    {{ inc.description | truncate(60) }}
+                  </div>
+                  {% endif %}
+                </td>
+
+                <!-- Severity -->
+                <td>
+                  {% if inc.severity == 'critical' %}
+                    <span class="badge" style="background:#7f1d1d;color:#fca5a5;letter-spacing:.04em;">
+                      <i class="bi bi-radioactive me-1"></i>Critical
+                    </span>
+                  {% elif inc.severity == 'high' %}
+                    <span class="badge" style="background:#991b1b;color:#fca5a5;">
+                      <i class="bi bi-exclamation-triangle-fill me-1"></i>High
+                    </span>
+                  {% elif inc.severity == 'medium' %}
+                    <span class="badge" style="background:#78350f;color:#fcd34d;">
+                      <i class="bi bi-exclamation-circle me-1"></i>Medium
+                    </span>
+                  {% else %}
+                    <span class="badge" style="background:#14532d;color:#86efac;">
+                      <i class="bi bi-info-circle me-1"></i>Low
+                    </span>
+                  {% endif %}
+                </td>
+
+                <!-- Status -->
+                <td>
+                  {% if inc.status == 'open' %}
+                    <span class="badge rounded-pill bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25">
+                      <i class="bi bi-circle-fill me-1" style="font-size:.5em;"></i>Open
+                    </span>
+                  {% elif inc.status == 'investigating' %}
+                    <span class="badge rounded-pill bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25">
+                      <i class="bi bi-circle-fill me-1" style="font-size:.5em;"></i>Investigating
+                    </span>
+                  {% elif inc.status == 'resolved' %}
+                    <span class="badge rounded-pill bg-success bg-opacity-25 text-success border border-success border-opacity-25">
+                      <i class="bi bi-circle-fill me-1" style="font-size:.5em;"></i>Resolved
+                    </span>
+                  {% elif inc.status == 'false_positive' %}
+                    <span class="badge rounded-pill bg-info bg-opacity-25 text-info border border-info border-opacity-25">
+                      <i class="bi bi-circle-fill me-1" style="font-size:.5em;"></i>False Positive
+                    </span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ inc.status }}</span>
+                  {% endif %}
+                </td>
+
+                <!-- IP -->
+                <td class="font-monospace small text-info">{{ inc.ip_address or '—' }}</td>
+
+                <!-- Country -->
+                <td class="small text-white">{{ inc.country or '—' }}</td>
+
+                <!-- Date -->
+                <td class="small text-secondary" style="white-space:nowrap;">
+                  {{ inc.created_at }}
+                </td>
+
+                <!-- Assignee -->
+                <td class="small">
+                  {% if inc.assignee %}
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center"
+                           style="width:24px;height:24px;font-size:.65rem;">
+                        {{ inc.assignee[0] | upper }}
+                      </div>
+                      <span class="text-white">{{ inc.assignee }}</span>
+                    </div>
+                  {% else %}
+                    <span class="text-secondary">—</span>
+                  {% endif %}
+                </td>
+
+                <!-- Action -->
+                <td class="text-center">
+                  <a href="/incidents/{{ inc.id }}"
+                     class="btn btn-sm btn-outline-primary py-0 px-2">
+                    <i class="bi bi-arrow-right-circle me-1"></i>Detail
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="9" class="text-center text-secondary py-5">
+                  <i class="bi bi-shield-check fs-2 d-block mb-2 text-success opacity-50"></i>
+                  Tidak ada insiden {% if status_filter %}dengan status <strong>{{ status_filter }}</strong>{% endif %}
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
